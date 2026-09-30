@@ -223,17 +223,28 @@ View all results: https://app.supabase.com/project/your-project/editor
 
 1. Open **Power BI Desktop**
 2. **Get Data → PostgreSQL database**
-3. Enter your Supabase connection details:
-   - **Server:** `db.your-project.supabase.co:5432`
-   - **Database:** `postgres`
-   - **Username:** `postgres`
-   - **Password:** your Supabase DB password (Settings → Database)
-4. Select the `exam_results` table
+3. Enter the connection details:
+
+   | Field | Value |
+   |---|---|
+   | Server | `db.uzelhlkezkwwpzeydtwi.supabase.co:5432` |
+   | Database | `postgres` |
+   | Username | `postgres` |
+   | Password | your Supabase DB password |
+
+   Full connection string:
+   ```
+   postgresql://postgres:[YOUR-PASSWORD]@db.uzelhlkezkwwpzeydtwi.supabase.co:5432/postgres
+   ```
+
+4. Select these views (created by `setup.sql`):
+   - `exam_results_summary` — full participant list, flat columns, ready for visuals
+   - `exam_stats` — KPI aggregates (totals and % per level)
 5. Build visuals:
    - Bar chart — count of participants by level
    - Line chart — submissions over time
    - Table — full participant list with scores
-   - Card — average score, pass rate
+   - Card visuals — average score, pass rate, total participants
 6. Publish to **Power BI Service** and share the dashboard link with HR
 
 ---
