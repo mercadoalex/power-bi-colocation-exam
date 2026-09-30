@@ -1,0 +1,1079 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Power BI Skills Assessment — Training & Consultancy</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #f4f6fb;
+      --surface: #ffffff;
+      --border: #dde2ed;
+      --text: #1a1d2e;
+      --muted: #6b7280;
+      --accent: #f2c811;      /* Power BI yellow */
+      --accent-dark: #d4ae00;
+      --primary: #2c5de5;
+      --primary-dark: #1e46c7;
+      --danger: #e53e3e;
+      --success: #22c55e;
+      --beginner: #3b82f6;
+      --intermediate: #f59e0b;
+      --advanced: #10b981;
+      --radius: 10px;
+      --shadow: 0 2px 16px rgba(44,93,229,0.08);
+    }
+
+    body {
+      font-family: -apple-system, "Segoe UI", system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      font-size: 15px;
+      line-height: 1.6;
+    }
+
+    /* ── Layout ─────────────────────────────────────── */
+    .page { display: none; }
+    .page.active { display: block; }
+
+    .container {
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 32px 16px;
+    }
+
+    /* ── Header ─────────────────────────────────────── */
+    .brand-header {
+      background: var(--text);
+      color: #fff;
+      padding: 14px 24px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .brand-logo {
+      background: var(--accent);
+      color: var(--text);
+      font-weight: 800;
+      font-size: 13px;
+      padding: 4px 8px;
+      border-radius: 4px;
+      letter-spacing: .5px;
+    }
+    .brand-name { font-size: 15px; font-weight: 600; opacity: .9; }
+    .brand-sep { color: var(--accent); font-size: 20px; }
+    .brand-subtitle { font-size: 13px; opacity: .55; margin-left: auto; }
+
+    /* ── Card ───────────────────────────────────────── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 36px 40px;
+      margin-top: 32px;
+    }
+
+    .card-title {
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 6px;
+    }
+    .card-subtitle {
+      font-size: 14px;
+      color: var(--muted);
+      margin-bottom: 28px;
+      line-height: 1.5;
+    }
+
+    /* ── Form ───────────────────────────────────────── */
+    .form-row { display: flex; gap: 16px; }
+    .form-group { display: flex; flex-direction: column; gap: 6px; flex: 1; margin-bottom: 18px; }
+    label { font-size: 13px; font-weight: 600; color: var(--text); }
+    input[type="text"], input[type="email"] {
+      border: 1.5px solid var(--border);
+      border-radius: 7px;
+      padding: 10px 14px;
+      font-size: 15px;
+      font-family: inherit;
+      color: var(--text);
+      background: #fafbff;
+      transition: border-color .18s;
+      outline: none;
+    }
+    input:focus { border-color: var(--primary); background: #fff; }
+    .input-error { border-color: var(--danger) !important; }
+    .error-msg { font-size: 12px; color: var(--danger); min-height: 16px; }
+
+    /* ── Buttons ─────────────────────────────────────── */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 11px 26px;
+      border: none;
+      border-radius: 7px;
+      font-size: 15px;
+      font-weight: 600;
+      font-family: inherit;
+      cursor: pointer;
+      transition: background .18s, transform .1s;
+    }
+    .btn:active { transform: scale(.98); }
+    .btn-primary { background: var(--primary); color: #fff; }
+    .btn-primary:hover { background: var(--primary-dark); }
+    .btn-accent { background: var(--accent); color: var(--text); }
+    .btn-accent:hover { background: var(--accent-dark); }
+    .btn-ghost { background: transparent; color: var(--primary); border: 1.5px solid var(--primary); }
+    .btn-ghost:hover { background: #eef2ff; }
+    .btn-sm { padding: 7px 16px; font-size: 13px; }
+    .btn-full { width: 100%; justify-content: center; }
+    .btn-print { background: #1a1d2e; color: #fff; }
+    .btn-print:hover { background: #2d3150; }
+
+    /* ── Progress bar ────────────────────────────────── */
+    .progress-wrap { margin-bottom: 24px; }
+    .progress-label {
+      display: flex;
+      justify-content: space-between;
+      font-size: 13px;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+    .progress-bar-bg {
+      background: var(--border);
+      border-radius: 99px;
+      height: 8px;
+      overflow: hidden;
+    }
+    .progress-bar-fill {
+      height: 100%;
+      background: var(--primary);
+      border-radius: 99px;
+      transition: width .4s ease;
+    }
+
+    /* ── Timer ───────────────────────────────────────── */
+    .timer-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: #eef2ff;
+      border: 1.5px solid #c7d2fe;
+      border-radius: 99px;
+      padding: 5px 14px;
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--primary);
+      float: right;
+    }
+    .timer-badge.warning { background: #fff7ed; border-color: #fed7aa; color: #c2410c; }
+    .timer-badge.danger  { background: #fef2f2; border-color: #fecaca; color: var(--danger); }
+
+    /* ── Question ────────────────────────────────────── */
+    .question-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      margin-bottom: 20px;
+      gap: 16px;
+    }
+    .question-num {
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .8px;
+      color: var(--primary);
+      margin-bottom: 6px;
+    }
+    .question-difficulty {
+      display: inline-block;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 99px;
+      margin-left: 8px;
+      vertical-align: middle;
+    }
+    .diff-beginner { background: #dbeafe; color: #1d4ed8; }
+    .diff-intermediate { background: #fef3c7; color: #92400e; }
+    .diff-advanced { background: #d1fae5; color: #065f46; }
+
+    .question-text { font-size: 16px; font-weight: 600; line-height: 1.55; }
+
+    .options { display: flex; flex-direction: column; gap: 10px; margin-top: 20px; }
+    .option-label {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 16px;
+      border: 1.5px solid var(--border);
+      border-radius: 8px;
+      cursor: pointer;
+      transition: border-color .15s, background .15s;
+      font-size: 15px;
+    }
+    .option-label:hover { border-color: var(--primary); background: #f0f4ff; }
+    .option-label input[type="radio"] { accent-color: var(--primary); width: 17px; height: 17px; flex-shrink: 0; }
+    .option-label.selected { border-color: var(--primary); background: #eef2ff; }
+
+    .question-nav {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 28px;
+      gap: 12px;
+    }
+
+    /* ── Result ──────────────────────────────────────── */
+    .result-hero {
+      text-align: center;
+      padding: 20px 0 28px;
+    }
+    .level-badge {
+      display: inline-block;
+      font-size: 13px;
+      font-weight: 800;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      padding: 6px 22px;
+      border-radius: 99px;
+      margin-bottom: 14px;
+    }
+    .level-beginner     { background: #dbeafe; color: #1d4ed8; }
+    .level-intermediate { background: #fef3c7; color: #78350f; }
+    .level-advanced     { background: #d1fae5; color: #065f46; }
+
+    .score-big {
+      font-size: 62px;
+      font-weight: 800;
+      line-height: 1;
+      margin-bottom: 6px;
+    }
+    .score-label { font-size: 15px; color: var(--muted); }
+
+    .score-row {
+      display: flex;
+      justify-content: center;
+      gap: 32px;
+      margin: 24px 0 28px;
+    }
+    .score-stat { text-align: center; }
+    .score-stat-val { font-size: 24px; font-weight: 700; }
+    .score-stat-lbl { font-size: 13px; color: var(--muted); }
+    .correct-val  { color: var(--success); }
+    .wrong-val    { color: var(--danger); }
+    .skip-val     { color: var(--muted); }
+
+    /* ── Report ──────────────────────────────────────── */
+    .report-section { margin-top: 28px; }
+    .report-section h3 {
+      font-size: 14px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .7px;
+      color: var(--muted);
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 8px;
+      margin-bottom: 14px;
+    }
+
+    .info-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px 24px;
+    }
+    .info-item { font-size: 14px; }
+    .info-item strong { display: block; font-size: 12px; color: var(--muted); font-weight: 600; }
+
+    .review-list { display: flex; flex-direction: column; gap: 8px; }
+    .review-item {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px 14px;
+      font-size: 13.5px;
+    }
+    .review-item.correct { border-left: 4px solid var(--success); }
+    .review-item.wrong   { border-left: 4px solid var(--danger); }
+    .review-item.skipped { border-left: 4px solid var(--muted); }
+    .review-q { font-weight: 600; margin-bottom: 4px; }
+    .review-ans { font-size: 13px; }
+    .review-ans span { font-weight: 600; }
+    .review-ans .ans-correct { color: var(--success); }
+    .review-ans .ans-wrong   { color: var(--danger); }
+
+    .report-actions {
+      display: flex;
+      gap: 12px;
+      margin-top: 28px;
+      flex-wrap: wrap;
+    }
+
+    /* ── Intro info boxes ────────────────────────────── */
+    .info-box {
+      background: #f0f4ff;
+      border: 1px solid #c7d2fe;
+      border-radius: 8px;
+      padding: 14px 18px;
+      font-size: 14px;
+      color: var(--text);
+      margin-top: 20px;
+    }
+    .info-box ul { padding-left: 18px; margin-top: 6px; }
+    .info-box li { margin-bottom: 3px; }
+
+    /* ── Print ───────────────────────────────────────── */
+    @media print {
+      .brand-header, .report-actions, .btn { display: none !important; }
+      body { background: #fff; }
+      .card { border: none; box-shadow: none; padding: 0; margin: 0; }
+      .page { display: block !important; }
+      #page-register, #page-exam { display: none !important; }
+      #page-result { display: block !important; }
+    }
+
+    @media (max-width: 560px) {
+      .card { padding: 24px 18px; }
+      .form-row { flex-direction: column; gap: 0; }
+      .score-row { gap: 18px; }
+      .info-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── Header ───────────────────────────────────────── -->
+<header class="brand-header">
+  <span class="brand-logo">PBI</span>
+  <span class="brand-name">Power BI Skills Assessment</span>
+  <span class="brand-sep">|</span>
+  <span class="brand-subtitle">Training &amp; Consultancy</span>
+</header>
+
+<!-- ════════════════════════════════════════════════════
+     PAGE 1 — REGISTRATION
+═══════════════════════════════════════════════════════ -->
+<div id="page-register" class="page active">
+  <div class="container">
+    <div class="card">
+      <div class="card-title">Participant Registration</div>
+      <div class="card-subtitle">
+        Complete the form below to access the Power BI Skills Assessment.
+        This exam will determine your proficiency level across beginner, intermediate, and advanced tiers.
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label for="firstName">First Name</label>
+          <input type="text" id="firstName" placeholder="e.g. María" autocomplete="given-name" />
+          <span class="error-msg" id="err-firstName"></span>
+        </div>
+        <div class="form-group">
+          <label for="lastName">Last Name</label>
+          <input type="text" id="lastName" placeholder="e.g. García" autocomplete="family-name" />
+          <span class="error-msg" id="err-lastName"></span>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="email">Corporate Email</label>
+        <input type="email" id="email" placeholder="e.g. m.garcia@company.com" autocomplete="email" />
+        <span class="error-msg" id="err-email"></span>
+      </div>
+
+      <div class="info-box">
+        <strong>About this assessment</strong>
+        <ul>
+          <li>20 multiple-choice questions covering Power BI fundamentals to advanced features</li>
+          <li>Time limit: <strong>30 minutes</strong></li>
+          <li>Each question has a single correct answer</li>
+          <li>A detailed HR report is generated automatically upon completion</li>
+        </ul>
+      </div>
+
+      <div style="margin-top: 28px;">
+        <button class="btn btn-primary btn-full" onclick="startExam()">
+          Begin Assessment →
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════
+     PAGE 2 — EXAM
+═══════════════════════════════════════════════════════ -->
+<div id="page-exam" class="page">
+  <div class="container">
+    <div class="card">
+      <div class="progress-wrap">
+        <div class="progress-label">
+          <span id="progress-text">Question 1 of 20</span>
+          <span id="timer-display" class="timer-badge">⏱ 30:00</span>
+        </div>
+        <div class="progress-bar-bg">
+          <div class="progress-bar-fill" id="progress-fill" style="width:5%"></div>
+        </div>
+      </div>
+
+      <div id="question-area"></div>
+
+      <div class="question-nav">
+        <button class="btn btn-ghost btn-sm" id="btn-prev" onclick="navigate(-1)">← Previous</button>
+        <span id="nav-dots" style="font-size:12px; color:var(--muted);"></span>
+        <button class="btn btn-primary btn-sm" id="btn-next" onclick="navigate(1)">Next →</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════
+     PAGE 3 — RESULTS & REPORT
+═══════════════════════════════════════════════════════ -->
+<div id="page-result" class="page">
+  <div class="container">
+    <div class="card">
+      <!-- Hero -->
+      <div class="result-hero">
+        <div id="level-badge" class="level-badge"></div>
+        <div class="score-big" id="score-pct"></div>
+        <div class="score-label">Overall Score</div>
+        <div class="score-row">
+          <div class="score-stat">
+            <div class="score-stat-val correct-val" id="stat-correct">-</div>
+            <div class="score-stat-lbl">Correct</div>
+          </div>
+          <div class="score-stat">
+            <div class="score-stat-val wrong-val" id="stat-wrong">-</div>
+            <div class="score-stat-lbl">Incorrect</div>
+          </div>
+          <div class="score-stat">
+            <div class="score-stat-val skip-val" id="stat-skip">-</div>
+            <div class="score-stat-lbl">Skipped</div>
+          </div>
+          <div class="score-stat">
+            <div class="score-stat-val" id="stat-time" style="color:var(--primary)">-</div>
+            <div class="score-stat-lbl">Time Used</div>
+          </div>
+        </div>
+        <div id="level-desc" style="font-size:14px; color:var(--muted); max-width:460px; margin: 0 auto;"></div>
+      </div>
+
+      <!-- HR Report sections -->
+      <div class="report-section">
+        <h3>📋 Participant Information</h3>
+        <div class="info-grid" id="report-info"></div>
+      </div>
+
+      <div class="report-section">
+        <h3>📊 Performance by Difficulty</h3>
+        <div id="report-breakdown"></div>
+      </div>
+
+      <div class="report-section">
+        <h3>📝 Recommendation</h3>
+        <div id="report-recommendation" style="font-size:14px; line-height:1.7;"></div>
+      </div>
+
+      <div class="report-section">
+        <h3>✅ Question Review</h3>
+        <div class="review-list" id="review-list"></div>
+      </div>
+
+      <!-- Actions -->
+      <div class="report-actions">
+        <button class="btn btn-print" onclick="window.print()">🖨 Print / Save as PDF</button>
+        <button class="btn btn-ghost" onclick="restartExam()">↩ New Assessment</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ════════════════════════════════════════════════════════
+//  CONFIG — replace with your Supabase project values
+// ════════════════════════════════════════════════════════
+const SUPABASE_FUNCTION_URL = 'https://YOUR_PROJECT_REF.supabase.co/functions/v1/submit-exam';
+
+// ════════════════════════════════════════════════════════
+//  QUESTION BANK — 20 Power BI Questions
+// ════════════════════════════════════════════════════════
+const QUESTIONS = [
+  // ── BEGINNER (8 questions) ──
+  {
+    id: 1, difficulty: "beginner",
+    text: "What is Power BI primarily used for?",
+    options: [
+      "Database administration and server management",
+      "Business intelligence, data visualization, and reporting",
+      "Software development and code compilation",
+      "Email marketing and campaign management"
+    ],
+    correct: 1
+  },
+  {
+    id: 2, difficulty: "beginner",
+    text: "Which of the following is a component of the Power BI service?",
+    options: [
+      "Power BI Desktop",
+      "Power BI Dashboard",
+      "Power BI Report Builder",
+      "All of the above"
+    ],
+    correct: 3
+  },
+  {
+    id: 3, difficulty: "beginner",
+    text: "In Power BI, what is a 'dataset'?",
+    options: [
+      "A collection of charts displayed on a single screen",
+      "A connection or import of data used to build reports",
+      "A type of filter applied to visuals",
+      "A scheduled email report"
+    ],
+    correct: 1
+  },
+  {
+    id: 4, difficulty: "beginner",
+    text: "What file extension does a Power BI Desktop file use?",
+    options: [".pbix", ".xlsx", ".csv", ".pbit"],
+    correct: 0
+  },
+  {
+    id: 5, difficulty: "beginner",
+    text: "Which view in Power BI Desktop allows you to clean and transform data before loading it into your model?",
+    options: ["Report View", "Model View", "Power Query Editor", "DAX Editor"],
+    correct: 2
+  },
+  {
+    id: 6, difficulty: "beginner",
+    text: "What does a Power BI 'Dashboard' contain?",
+    options: [
+      "Raw data tables exported from Excel",
+      "Pinned tiles from one or more reports or datasets",
+      "Only bar and line charts",
+      "SQL query results"
+    ],
+    correct: 1
+  },
+  {
+    id: 7, difficulty: "beginner",
+    text: "Which of these is a valid data source connection in Power BI?",
+    options: [
+      "Excel workbook",
+      "SQL Server database",
+      "SharePoint Online list",
+      "All of the above"
+    ],
+    correct: 3
+  },
+  {
+    id: 8, difficulty: "beginner",
+    text: "What is the purpose of slicers in a Power BI report?",
+    options: [
+      "To split data into multiple pages automatically",
+      "To allow users to interactively filter report visuals",
+      "To merge two tables together",
+      "To schedule data refresh intervals"
+    ],
+    correct: 1
+  },
+
+  // ── INTERMEDIATE (7 questions) ──
+  {
+    id: 9, difficulty: "intermediate",
+    text: "In DAX, what does the CALCULATE function do?",
+    options: [
+      "Performs arithmetic calculations on columns",
+      "Evaluates an expression in a modified filter context",
+      "Counts the number of rows in a table",
+      "Retrieves the current date and time"
+    ],
+    correct: 1
+  },
+  {
+    id: 10, difficulty: "intermediate",
+    text: "What is the difference between a 'Measure' and a 'Calculated Column' in Power BI?",
+    options: [
+      "There is no difference; they are the same thing",
+      "Measures are computed at query time using filter context; calculated columns are computed row-by-row at refresh",
+      "Calculated columns are only available in Power BI Service",
+      "Measures can only use SUM and COUNT functions"
+    ],
+    correct: 1
+  },
+  {
+    id: 11, difficulty: "intermediate",
+    text: "Which type of relationship cardinality should typically be used between a Fact table and a Dimension table in a star schema?",
+    options: [
+      "Many-to-Many (*:*)",
+      "One-to-One (1:1)",
+      "Many-to-One (*:1)",
+      "No relationship needed"
+    ],
+    correct: 2
+  },
+  {
+    id: 12, difficulty: "intermediate",
+    text: "What is the purpose of the RELATED() DAX function?",
+    options: [
+      "Creates a relationship between two tables",
+      "Retrieves a value from a related (one-side) table column based on the current row",
+      "Filters a table based on a condition",
+      "Returns all rows from two tables joined together"
+    ],
+    correct: 1
+  },
+  {
+    id: 13, difficulty: "intermediate",
+    text: "In Power Query, what does 'Merge Queries' do?",
+    options: [
+      "Appends rows from one table to another",
+      "Performs a join between two tables based on matching key columns",
+      "Exports a table to a CSV file",
+      "Splits one column into multiple columns"
+    ],
+    correct: 1
+  },
+  {
+    id: 14, difficulty: "intermediate",
+    text: "What does the Power BI Gateway enable?",
+    options: [
+      "Exporting reports to PowerPoint",
+      "Refreshing on-premises data sources in the Power BI Service",
+      "Creating new workspaces in Teams",
+      "Embedding reports in mobile apps"
+    ],
+    correct: 1
+  },
+  {
+    id: 15, difficulty: "intermediate",
+    text: "Which DAX function would you use to compute a running total that ignores the current report filters?",
+    options: [
+      "SUMX",
+      "TOTALYTD",
+      "ALL combined with CALCULATE",
+      "FILTER"
+    ],
+    correct: 2
+  },
+
+  // ── ADVANCED (5 questions) ──
+  {
+    id: 16, difficulty: "advanced",
+    text: "What is the difference between DirectQuery and Import mode in Power BI?",
+    options: [
+      "Import loads data into the Power BI model; DirectQuery queries the source live at report render time",
+      "DirectQuery stores data locally; Import queries the cloud",
+      "They are identical in performance and behavior",
+      "Import mode does not support relationships"
+    ],
+    correct: 0
+  },
+  {
+    id: 17, difficulty: "advanced",
+    text: "What does the USERELATIONSHIP() function allow you to do?",
+    options: [
+      "Create a new relationship between tables dynamically",
+      "Activate an inactive relationship within a CALCULATE expression",
+      "Delete an existing relationship from the model",
+      "Convert a many-to-many relationship to one-to-one"
+    ],
+    correct: 1
+  },
+  {
+    id: 18, difficulty: "advanced",
+    text: "What is Row-Level Security (RLS) in Power BI?",
+    options: [
+      "A method to format rows alternately in tables",
+      "A feature to restrict data access at the row level per user or role",
+      "A Power Query step that removes duplicate rows",
+      "An option to lock report pages from editing"
+    ],
+    correct: 1
+  },
+  {
+    id: 19, difficulty: "advanced",
+    text: "Which of the following correctly describes the RANKX function in DAX?",
+    options: [
+      "It sorts a table alphabetically by a column",
+      "It returns the ranking of a value in a column across all rows in a given table expression",
+      "It creates a calculated table sorted by rank",
+      "It works only with date columns"
+    ],
+    correct: 1
+  },
+  {
+    id: 20, difficulty: "advanced",
+    text: "In Power BI, what is a 'Composite Model'?",
+    options: [
+      "A report containing more than 10 visuals",
+      "A data model that combines Import and DirectQuery tables, or multiple DirectQuery sources",
+      "A Power BI template file (.pbit) with prebuilt visuals",
+      "A model created using only calculated tables"
+    ],
+    correct: 1
+  }
+];
+
+// ════════════════════════════════════════════════════════
+//  STATE
+// ════════════════════════════════════════════════════════
+let participant = {};
+let answers = {};          // { questionIndex: selectedOptionIndex }
+let currentQ = 0;
+let timerInterval = null;
+let secondsRemaining = 30 * 60;
+let examStartTime = null;
+let examEndTime = null;
+
+// ════════════════════════════════════════════════════════
+//  REGISTRATION
+// ════════════════════════════════════════════════════════
+function validateEmail(email) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
+function setError(fieldId, msg) {
+  const input = document.getElementById(fieldId);
+  const err   = document.getElementById('err-' + fieldId);
+  input.classList.toggle('input-error', !!msg);
+  err.textContent = msg || '';
+}
+
+function startExam() {
+  const fn = document.getElementById('firstName').value.trim();
+  const ln = document.getElementById('lastName').value.trim();
+  const em = document.getElementById('email').value.trim();
+  let valid = true;
+
+  setError('firstName', fn ? '' : 'First name is required.');
+  setError('lastName',  ln ? '' : 'Last name is required.');
+  if (!em) {
+    setError('email', 'Email is required.');
+    valid = false;
+  } else if (!validateEmail(em)) {
+    setError('email', 'Enter a valid email address.');
+    valid = false;
+  } else {
+    setError('email', '');
+  }
+
+  if (!fn || !ln) valid = false;
+  if (!valid) return;
+
+  participant = {
+    firstName: fn,
+    lastName: ln,
+    email: em,
+    fullName: fn + ' ' + ln,
+    date: new Date().toLocaleDateString('en-GB', { year:'numeric', month:'long', day:'numeric' }),
+    time: new Date().toLocaleTimeString('en-GB', { hour:'2-digit', minute:'2-digit' })
+  };
+
+  showPage('page-exam');
+  currentQ = 0;
+  answers = {};
+  secondsRemaining = 30 * 60;
+  examStartTime = Date.now();
+  renderQuestion();
+  startTimer();
+}
+
+// ════════════════════════════════════════════════════════
+//  TIMER
+// ════════════════════════════════════════════════════════
+function startTimer() {
+  clearInterval(timerInterval);
+  timerInterval = setInterval(() => {
+    secondsRemaining--;
+    updateTimerDisplay();
+    if (secondsRemaining <= 0) {
+      clearInterval(timerInterval);
+      finishExam(true);
+    }
+  }, 1000);
+}
+
+function updateTimerDisplay() {
+  const el = document.getElementById('timer-display');
+  if (!el) return;
+  const m = Math.floor(secondsRemaining / 60);
+  const s = secondsRemaining % 60;
+  el.textContent = '⏱ ' + String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0');
+  el.className = 'timer-badge';
+  if (secondsRemaining <= 300) el.classList.add('warning');
+  if (secondsRemaining <= 60)  el.classList.add('danger');
+}
+
+// ════════════════════════════════════════════════════════
+//  RENDER QUESTION
+// ════════════════════════════════════════════════════════
+function renderQuestion() {
+  const q   = QUESTIONS[currentQ];
+  const area = document.getElementById('question-area');
+
+  const diffLabel = { beginner: 'Beginner', intermediate: 'Intermediate', advanced: 'Advanced' }[q.difficulty];
+
+  area.innerHTML = `
+    <div class="question-header">
+      <div>
+        <div class="question-num">
+          Question ${currentQ + 1} of ${QUESTIONS.length}
+          <span class="question-difficulty diff-${q.difficulty}">${diffLabel}</span>
+        </div>
+        <div class="question-text">${q.text}</div>
+      </div>
+    </div>
+    <div class="options" id="options-${currentQ}">
+      ${q.options.map((opt, i) => `
+        <label class="option-label ${answers[currentQ] === i ? 'selected' : ''}" id="opt-lbl-${i}">
+          <input type="radio" name="q${currentQ}" value="${i}"
+            ${answers[currentQ] === i ? 'checked' : ''}
+            onchange="selectAnswer(${i})" />
+          ${opt}
+        </label>
+      `).join('')}
+    </div>
+  `;
+
+  // Progress
+  const pct = ((currentQ + 1) / QUESTIONS.length) * 100;
+  document.getElementById('progress-fill').style.width = pct + '%';
+  document.getElementById('progress-text').textContent = `Question ${currentQ + 1} of ${QUESTIONS.length}`;
+
+  // Nav buttons
+  document.getElementById('btn-prev').disabled = currentQ === 0;
+  const isLast = currentQ === QUESTIONS.length - 1;
+  const btnNext = document.getElementById('btn-next');
+  btnNext.textContent = isLast ? 'Finish Exam ✓' : 'Next →';
+  btnNext.onclick = isLast ? () => finishExam(false) : () => navigate(1);
+
+  // Dots (mini nav indicator)
+  const answered = Object.keys(answers).length;
+  document.getElementById('nav-dots').textContent = `${answered} of ${QUESTIONS.length} answered`;
+}
+
+function selectAnswer(optionIndex) {
+  answers[currentQ] = optionIndex;
+  // Highlight selected
+  document.querySelectorAll(`#options-${currentQ} .option-label`).forEach((lbl, i) => {
+    lbl.classList.toggle('selected', i === optionIndex);
+  });
+  const answered = Object.keys(answers).length;
+  document.getElementById('nav-dots').textContent = `${answered} of ${QUESTIONS.length} answered`;
+}
+
+function navigate(dir) {
+  const next = currentQ + dir;
+  if (next < 0 || next >= QUESTIONS.length) return;
+  currentQ = next;
+  renderQuestion();
+}
+
+// ════════════════════════════════════════════════════════
+//  FINISH — POST to Supabase Edge Function
+// ════════════════════════════════════════════════════════
+async function finishExam(timedOut) {
+  clearInterval(timerInterval);
+  examEndTime = Date.now();
+
+  const timeUsedSeconds = Math.floor((examEndTime - examStartTime) / 1000);
+  const tm = Math.floor(timeUsedSeconds / 60);
+  const ts = timeUsedSeconds % 60;
+  const timeUsedStr = `${String(tm).padStart(2,'0')}:${String(ts).padStart(2,'0')}`;
+
+  // ── Show loading state ──
+  showPage('page-result');
+  document.getElementById('score-pct').textContent = '…';
+  document.getElementById('level-badge').textContent = 'Submitting';
+  document.getElementById('level-badge').className = 'level-badge';
+  document.getElementById('level-desc').textContent = 'Saving your results, please wait…';
+
+  // ── POST to Edge Function ──
+  let result;
+  try {
+    const res = await fetch(SUPABASE_FUNCTION_URL, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        participant: {
+          firstName: participant.firstName,
+          lastName:  participant.lastName,
+          email:     participant.email,
+        },
+        answers,
+        timeUsed:  timeUsedStr,
+        startedAt: new Date(examStartTime).toISOString(),
+      }),
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || `HTTP ${res.status}`);
+    }
+
+    result = await res.json();
+  } catch (e) {
+    // ── Fallback: score locally if network fails ──
+    console.warn('Edge Function unavailable, scoring locally:', e.message);
+    result = scoreLocally(timeUsedStr);
+  }
+
+  renderResult(result, timeUsedStr);
+}
+
+// ── Local scoring fallback (no network) ──────────────────
+function scoreLocally(timeUsedStr) {
+  let correct = 0, wrong = 0, skipped = 0;
+  const breakdown = {
+    beginner:     { correct: 0, total: 0, pct: 0 },
+    intermediate: { correct: 0, total: 0, pct: 0 },
+    advanced:     { correct: 0, total: 0, pct: 0 },
+  };
+
+  QUESTIONS.forEach((q, i) => {
+    const d = q.difficulty;
+    breakdown[d].total++;
+    if (answers[i] === undefined) {
+      skipped++;
+    } else if (answers[i] === q.correct) {
+      correct++;
+      breakdown[d].correct++;
+    } else {
+      wrong++;
+    }
+  });
+
+  for (const d of Object.keys(breakdown)) {
+    const b = breakdown[d];
+    b.pct = b.total > 0 ? Math.round((b.correct / b.total) * 100) : 0;
+  }
+
+  const percentage = Math.round((correct / QUESTIONS.length) * 100);
+  let level, recommendation;
+  if (correct <= 9) {
+    level = 'Beginner';
+    recommendation = `<strong>${participant.fullName}</strong> scored ${correct}/20 (${percentage}%), placing them in the <strong>Beginner</strong> tier. Recommended: <em>Power BI Fundamentals</em> (2–3 days).`;
+  } else if (correct <= 15) {
+    level = 'Intermediate';
+    recommendation = `<strong>${participant.fullName}</strong> scored ${correct}/20 (${percentage}%), placing them in the <strong>Intermediate</strong> tier. Recommended: <em>Power BI Data Modeling & DAX</em> (2 days).`;
+  } else {
+    level = 'Advanced';
+    recommendation = `<strong>${participant.fullName}</strong> scored ${correct}/20 (${percentage}%), placing them in the <strong>Advanced</strong> tier. Recommended: <em>Power BI Advanced Analytics & Governance</em> (2 days).`;
+  }
+
+  return { correct, wrong, skipped, percentage, level, breakdown, recommendation, timeUsed: timeUsedStr };
+}
+
+// ── Render result page from Edge Function or local score ──
+function renderResult(result, timeUsedStr) {
+  const { correct, wrong, skipped, percentage, level, breakdown, recommendation } = result;
+
+  const levelClassMap = { Beginner: 'level-beginner', Intermediate: 'level-intermediate', Advanced: 'level-advanced' };
+  const levelDescMap  = {
+    Beginner:     'The participant demonstrates foundational awareness of Power BI concepts and is best placed in the Beginner track.',
+    Intermediate: 'The participant has a solid understanding of core Power BI features and is best placed in the Intermediate track.',
+    Advanced:     'The participant demonstrates advanced proficiency in Power BI and is best placed in the Advanced track.',
+  };
+
+  document.getElementById('level-badge').textContent  = level;
+  document.getElementById('level-badge').className    = 'level-badge ' + levelClassMap[level];
+  document.getElementById('score-pct').textContent    = percentage + '%';
+  document.getElementById('stat-correct').textContent = correct;
+  document.getElementById('stat-wrong').textContent   = wrong;
+  document.getElementById('stat-skip').textContent    = skipped;
+  document.getElementById('stat-time').textContent    = timeUsedStr;
+  document.getElementById('level-desc').textContent   = levelDescMap[level];
+
+  // Participant info
+  document.getElementById('report-info').innerHTML = `
+    <div class="info-item"><strong>Full Name</strong>${participant.fullName}</div>
+    <div class="info-item"><strong>Email</strong>${participant.email}</div>
+    <div class="info-item"><strong>Date</strong>${participant.date}</div>
+    <div class="info-item"><strong>Start Time</strong>${participant.time}</div>
+    <div class="info-item"><strong>Score</strong>${correct} / ${QUESTIONS.length} (${percentage}%)</div>
+    <div class="info-item"><strong>Level Assigned</strong>${level}</div>
+    <div class="info-item"><strong>Time Used</strong>${timeUsedStr}</div>
+    <div class="info-item"><strong>Exam</strong>Power BI Skills Assessment v1</div>
+  `;
+
+  // Breakdown by difficulty
+  const bdHtml = ['beginner', 'intermediate', 'advanced'].map(d => {
+    const b   = breakdown[d];
+    const c   = b.correct ?? b.c ?? 0;
+    const t   = b.total   ?? b.t ?? 0;
+    const dp  = b.pct     ?? (t ? Math.round((c / t) * 100) : 0);
+    const lbl = d.charAt(0).toUpperCase() + d.slice(1);
+    return `
+      <div style="margin-bottom:14px;">
+        <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:5px;">
+          <span style="font-weight:600;">${lbl}</span>
+          <span style="color:var(--muted)">${c} / ${t} correct (${dp}%)</span>
+        </div>
+        <div style="background:var(--border);border-radius:99px;height:10px;overflow:hidden;">
+          <div style="width:${dp}%;height:100%;background:var(--${d});border-radius:99px;transition:width .5s;"></div>
+        </div>
+      </div>`;
+  }).join('');
+  document.getElementById('report-breakdown').innerHTML = bdHtml;
+
+  // Recommendation
+  document.getElementById('report-recommendation').innerHTML = recommendation;
+
+  // Question review (always rendered locally from QUESTIONS + answers)
+  const reviewHtml = QUESTIONS.map((q, i) => {
+    let status, statusClass, ansText;
+    if (answers[i] === undefined) {
+      status = 'Skipped'; statusClass = 'skipped';
+      ansText = '<span style="color:var(--muted)">Not answered</span>';
+    } else if (answers[i] === q.correct) {
+      status = '✓ Correct'; statusClass = 'correct';
+      ansText = `<span class="ans-correct">${q.options[answers[i]]}</span>`;
+    } else {
+      status = '✗ Incorrect'; statusClass = 'wrong';
+      ansText = `<span class="ans-wrong">${q.options[answers[i]]}</span> &nbsp;→&nbsp; Correct: <span class="ans-correct">${q.options[q.correct]}</span>`;
+    }
+    return `
+      <div class="review-item ${statusClass}">
+        <div class="review-q">Q${i+1}. ${q.text} <em style="font-size:11px;color:var(--muted);font-weight:400;">(${q.difficulty})</em></div>
+        <div class="review-ans">${status} — ${ansText}</div>
+      </div>`;
+  }).join('');
+  document.getElementById('review-list').innerHTML = reviewHtml;
+
+  // Report URL from Supabase Storage (if available)
+  if (result.reportUrl) {
+    const actionsDiv = document.querySelector('.report-actions');
+    const link = document.createElement('a');
+    link.href = result.reportUrl;
+    link.target = '_blank';
+    link.className = 'btn btn-ghost';
+    link.textContent = '📄 Open Full Report';
+    actionsDiv.prepend(link);
+  }
+}
+
+// ════════════════════════════════════════════════════════
+//  HELPERS
+// ════════════════════════════════════════════════════════
+function showPage(id) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  window.scrollTo(0, 0);
+}
+
+function restartExam() {
+  clearInterval(timerInterval);
+  document.getElementById('firstName').value = '';
+  document.getElementById('lastName').value = '';
+  document.getElementById('email').value = '';
+  showPage('page-register');
+}
+</script>
+</body>
+</html>
