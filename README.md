@@ -162,7 +162,7 @@ supabase functions deploy submit-exam
 
 The function URL will be:
 ```
-https://YOUR_PROJECT_REF.supabase.co/functions/v1/submit-exam
+ is https://uzelhlkezkwwpzeydtwi.supabase.co/functions/v1/submit-exam
 ```
 
 #### 3c. Update index.html config
@@ -170,7 +170,7 @@ https://YOUR_PROJECT_REF.supabase.co/functions/v1/submit-exam
 Open `index.html` and replace the config line at the top of the `<script>` block:
 
 ```js
-const SUPABASE_FUNCTION_URL = 'https://YOUR_PROJECT_REF.supabase.co/functions/v1/submit-exam';
+const SUPABASE_FUNCTION_URL = 'https://uzelhlkezkwwpzeydtwi.supabase.co/functions/v1/submit-exam';
 ```
 
 #### What the Edge Function does
