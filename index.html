@@ -498,6 +498,7 @@
 //  CONFIG — replace with your Supabase project values
 // ════════════════════════════════════════════════════════
 const SUPABASE_FUNCTION_URL = 'https://uzelhlkezkwwpzeydtwi.supabase.co/functions/v1/submit-exam';
+const SUPABASE_ANON_KEY     = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV6ZWxobGtlemt3d3B6ZXlkdHdpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA3OTc1MjQsImV4cCI6MjEwNjM3MzUyNH0.LckuF5znUnGrWk2h6B7sW_83-0MIEAtCj8RxQVNjE-8';
 
 // ════════════════════════════════════════════════════════
 //  QUESTION BANK — 20 Power BI Questions
@@ -899,7 +900,7 @@ async function finishExam(timedOut) {
   try {
     const res = await fetch(SUPABASE_FUNCTION_URL, {
       method:  'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + SUPABASE_ANON_KEY },
       body: JSON.stringify({
         participant: {
           firstName: participant.firstName,
