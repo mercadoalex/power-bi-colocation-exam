@@ -24,6 +24,7 @@ interface Participant {
 
 interface SubmitPayload {
   participant: Participant;
+  accessCode:  string;
   answers:     Record<number, number>; // { questionIndex: selectedOptionIndex }
   timeUsed:    string;                 // "MM:SS"
   startedAt:   string;                 // ISO timestamp
@@ -207,6 +208,17 @@ function validate(payload: unknown): { valid: boolean; errors: string[] } {
       errors.push("lastName is required.");
     if (!pt.email || typeof pt.email !== "string" || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(pt.email))
       errors.push("A valid email is required.");
+  }
+
+  // Access code — validated against EXAM_ACCESS_CODE secret
+  const validCodes = (Deno.env.get("EXAM_ACCESS_CODES") ?? "PBI-2025,TRAIN-01,CONSUL-02")
+    .split(",")
+    .map((c) => c.trim().toUpperCase());
+  const submittedCode = (typeof p.accessCode === "string" ? p.accessCode : "").trim().toUpperCase();
+  if (!submittedCode) {
+    errors.push("Access code is required.");
+  } else if (!validCodes.includes(submittedCode)) {
+    errors.push("Invalid access code.");
   }
 
   // Answers
@@ -411,7 +423,7 @@ Deno.serve(async (req: Request) => {
     });
   }
 
-  const { participant, answers, timeUsed, startedAt } = payload as SubmitPayload;
+  const { participant, accessCode, answers, timeUsed, startedAt } = payload as SubmitPayload;
 
   // ── Score ───────────────────────────────────────────────────────────────────
   const { correct, wrong, skipped, breakdown, questionDetail } = scoreExam(answers);

@@ -366,6 +366,15 @@
         This exam will determine your proficiency level across beginner, intermediate, and advanced tiers.
       </div>
 
+      <div class="form-group">
+        <label for="accessCode">Exam Access Code</label>
+        <input type="text" id="accessCode" placeholder="Enter the code provided by your coordinator"
+          autocomplete="off" spellcheck="false" style="letter-spacing:.1em; text-transform:uppercase;" />
+        <span class="error-msg" id="err-accessCode"></span>
+      </div>
+
+      <div style="border-top:1px solid var(--border); margin: 4px 0 20px;"></div>
+
       <div class="form-row">
         <div class="form-group">
           <label for="firstName">First Name</label>
@@ -499,6 +508,11 @@
 // ════════════════════════════════════════════════════════
 const SUPABASE_FUNCTION_URL = 'https://uzelhlkezkwwpzeydtwi.supabase.co/functions/v1/submit-exam';
 const SUPABASE_ANON_KEY     = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV6ZWxobGtlemt3d3B6ZXlkdHdpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA3OTc1MjQsImV4cCI6MjEwNjM3MzUyNH0.LckuF5znUnGrWk2h6B7sW_83-0MIEAtCj8RxQVNjE-8';
+
+// ── Access codes — add/remove codes here as needed ──────
+// Share the active code with participants before each session.
+// Change it between sessions to invalidate old links.
+const VALID_CODES = ['PBI-2025', 'TRAIN-01', 'CONSUL-02'];
 
 // ════════════════════════════════════════════════════════
 //  QUESTION BANK — 20 Power BI Questions
@@ -747,10 +761,22 @@ function setError(fieldId, msg) {
 }
 
 function startExam() {
-  const fn = document.getElementById('firstName').value.trim();
-  const ln = document.getElementById('lastName').value.trim();
-  const em = document.getElementById('email').value.trim();
-  let valid = true;
+  const code = document.getElementById('accessCode').value.trim().toUpperCase();
+  const fn   = document.getElementById('firstName').value.trim();
+  const ln   = document.getElementById('lastName').value.trim();
+  const em   = document.getElementById('email').value.trim();
+  let valid  = true;
+
+  // ── Validate access code ──
+  if (!code) {
+    setError('accessCode', 'Access code is required.');
+    valid = false;
+  } else if (!VALID_CODES.includes(code)) {
+    setError('accessCode', 'Invalid access code. Please check with your coordinator.');
+    valid = false;
+  } else {
+    setError('accessCode', '');
+  }
 
   setError('firstName', fn ? '' : 'First name is required.');
   setError('lastName',  ln ? '' : 'Last name is required.');
@@ -769,9 +795,10 @@ function startExam() {
 
   participant = {
     firstName: fn,
-    lastName: ln,
-    email: em,
-    fullName: fn + ' ' + ln,
+    lastName:  ln,
+    email:     em,
+    accessCode: code,
+    fullName:  fn + ' ' + ln,
     date: new Date().toLocaleDateString('en-GB', { year:'numeric', month:'long', day:'numeric' }),
     time: new Date().toLocaleTimeString('en-GB', { hour:'2-digit', minute:'2-digit' })
   };
@@ -907,6 +934,7 @@ async function finishExam(timedOut) {
           lastName:  participant.lastName,
           email:     participant.email,
         },
+        accessCode: participant.accessCode,
         answers,
         timeUsed:  timeUsedStr,
         startedAt: new Date(examStartTime).toISOString(),
