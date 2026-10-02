@@ -438,9 +438,9 @@ async function login() {
       return;
     }
 
-    // Store token (not the password) in sessionStorage
-    sessionStorage.setItem('hr_token',   data.token);
-    sessionStorage.setItem('hr_expires', data.expiresAt);
+    // Store session flag + password for re-auth on refresh (sessionStorage is cleared on tab close)
+    sessionStorage.setItem('hr_session', '1');
+    sessionStorage.setItem('hr_pw', pw);
     document.getElementById('login-overlay').style.display = 'none';
     loadData();
   } catch (e) {
@@ -452,29 +452,21 @@ async function login() {
 }
 
 function logout() {
-  sessionStorage.removeItem('hr_token');
-  sessionStorage.removeItem('hr_expires');
+  sessionStorage.clear();
   location.reload();
 }
 
-function getToken() {
-  const token   = sessionStorage.getItem('hr_token');
-  const expires = parseInt(sessionStorage.getItem('hr_expires') || '0', 10);
-  if (!token || Date.now() > expires) {
-    sessionStorage.removeItem('hr_token');
-    sessionStorage.removeItem('hr_expires');
-    return null;
-  }
-  return token;
+function getSession() {
+  return sessionStorage.getItem('hr_session') === '1';
 }
 
-// Auto-unlock if token is still valid this session
-if (getToken()) {
+// Auto-unlock if already authenticated this browser session
+if (getSession()) {
   document.getElementById('login-overlay').style.display = 'none';
 }
 
 // ════════════════════════════════════════════════════════
-//  DATA — fetched via Edge Function using session token
+//  DATA — fetched via Edge Function using password token
 // ════════════════════════════════════════════════════════
 let allResults = [];
 let filtered   = [];
@@ -482,23 +474,42 @@ let filtered   = [];
 async function loadData() {
   document.getElementById('last-updated').textContent = 'Refreshing…';
 
-  const token = getToken();
-  if (!token) {
-    // Session expired — force re-login
+  if (!getSession()) {
     document.getElementById('login-overlay').style.display = 'flex';
-    document.getElementById('login-error').textContent = 'Session expired. Please log in again.';
+    return;
+  }
+
+  // Re-authenticate to get a fresh token each time data is loaded
+  // (Edge Function instances are stateless — tokens don't persist across cold starts)
+  const storedPw = sessionStorage.getItem('hr_pw');
+  if (!storedPw) {
+    document.getElementById('login-overlay').style.display = 'flex';
     return;
   }
 
   try {
+    // Step 1 — get a fresh token
+    const authRes  = await fetch(AUTH_FUNCTION_URL, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + SUPABASE_ANON_KEY },
+      body:    JSON.stringify({ password: storedPw }),
+    });
+    if (!authRes.ok) {
+      sessionStorage.clear();
+      document.getElementById('login-overlay').style.display = 'flex';
+      document.getElementById('login-error').textContent = 'Session expired. Please log in again.';
+      return;
+    }
+    const { token } = await authRes.json();
+
+    // Step 2 — fetch data with fresh token
     const res = await fetch(AUTH_FUNCTION_URL, {
       method:  'GET',
       headers: { 'Authorization': 'Bearer ' + token },
     });
 
     if (res.status === 401) {
-      sessionStorage.removeItem('hr_token');
-      sessionStorage.removeItem('hr_expires');
+      sessionStorage.clear();
       document.getElementById('login-overlay').style.display = 'flex';
       document.getElementById('login-error').textContent = 'Session expired. Please log in again.';
       return;
@@ -789,8 +800,8 @@ function exportPDF() {
 function pct(n, total) { return total ? Math.round((n / total) * 100) : 0; }
 function escHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
-// ── Auto-load if token is valid ──────────────────────────
-if (getToken()) {
+// ── Auto-load if session is active ───────────────────────
+if (getSession()) {
   loadData();
 }
 </script>
