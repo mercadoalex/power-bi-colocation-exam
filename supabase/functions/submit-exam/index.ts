@@ -344,7 +344,11 @@ async function sendHrEmail(result: ExamResult, resendKey: string, hrEmail: strin
     from:    "assessments@rootaccess.news",
     to:      [hrEmail],
     ...(ccEmail ? { cc: [ccEmail] } : {}),
-    subject: `[Assessment] ${result.firstName} ${result.lastName} — ${result.level} (${result.percentage}%)`,
+    subject: `[PBI-Assessment] ${result.firstName} ${result.lastName} — ${result.level} (${result.percentage}%)`,
+    headers: {
+      "X-Category":    "PBI-Assessment",
+      "X-Assessment":  "Power-BI-Skills",
+    },
     html: `
       <div style="font-family:-apple-system,'Segoe UI',sans-serif;max-width:560px;margin:0 auto;color:#1a1d2e;">
         <div style="background:#1a1d2e;padding:14px 20px;border-radius:8px 8px 0 0;">
