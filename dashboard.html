@@ -405,51 +405,105 @@
 // ════════════════════════════════════════════════════════
 //  CONFIG
 // ════════════════════════════════════════════════════════
-const SUPABASE_URL  = 'https://uzelhlkezkwwpzeydtwi.supabase.co';
-const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV6ZWxobGtlemt3d3B6ZXlkdHdpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA3OTc1MjQsImV4cCI6MjEwNjM3MzUyNH0.LckuF5znUnGrWk2h6B7sW_83-0MIEAtCj8RxQVNjE-8';
-
-// ── Dashboard password — change this to your own ────────
-const DASHBOARD_PASSWORD = 'HR-PBI-2025';
+// Password lives in Supabase secret DASHBOARD_PASSWORD — never in this file.
+const AUTH_FUNCTION_URL = 'https://uzelhlkezkwwpzeydtwi.supabase.co/functions/v1/dashboard-auth';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV6ZWxobGtlemt3d3B6ZXlkdHdpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA3OTc1MjQsImV4cCI6MjEwNjM3MzUyNH0.LckuF5znUnGrWk2h6B7sW_83-0MIEAtCj8RxQVNjE-8';
 
 // ════════════════════════════════════════════════════════
-//  AUTH
+//  AUTH — password validated server-side by Edge Function
 // ════════════════════════════════════════════════════════
-function login() {
-  const pw = document.getElementById('dash-password').value;
-  if (pw === DASHBOARD_PASSWORD) {
-    sessionStorage.setItem('hr_auth', '1');
+async function login() {
+  const pw  = document.getElementById('dash-password').value;
+  const btn = document.querySelector('.btn-login');
+  const err = document.getElementById('login-error');
+
+  if (!pw) { err.textContent = 'Please enter the dashboard password.'; return; }
+
+  btn.textContent = 'Verifying…';
+  btn.disabled    = true;
+  err.textContent = '';
+
+  try {
+    const res  = await fetch(AUTH_FUNCTION_URL, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + SUPABASE_ANON_KEY },
+      body:    JSON.stringify({ password: pw }),
+    });
+    const data = await res.json();
+
+    if (!res.ok) {
+      err.textContent = data.error || 'Incorrect password. Please try again.';
+      document.getElementById('dash-password').value = '';
+      document.getElementById('dash-password').focus();
+      return;
+    }
+
+    // Store token (not the password) in sessionStorage
+    sessionStorage.setItem('hr_token',   data.token);
+    sessionStorage.setItem('hr_expires', data.expiresAt);
     document.getElementById('login-overlay').style.display = 'none';
     loadData();
-  } else {
-    document.getElementById('login-error').textContent = 'Incorrect password. Please try again.';
-    document.getElementById('dash-password').value = '';
-    document.getElementById('dash-password').focus();
+  } catch (e) {
+    err.textContent = 'Connection error. Please try again.';
+  } finally {
+    btn.textContent = 'Access Dashboard';
+    btn.disabled    = false;
   }
 }
 
 function logout() {
-  sessionStorage.removeItem('hr_auth');
+  sessionStorage.removeItem('hr_token');
+  sessionStorage.removeItem('hr_expires');
   location.reload();
 }
 
-// Auto-unlock if already authenticated this session
-if (sessionStorage.getItem('hr_auth') === '1') {
+function getToken() {
+  const token   = sessionStorage.getItem('hr_token');
+  const expires = parseInt(sessionStorage.getItem('hr_expires') || '0', 10);
+  if (!token || Date.now() > expires) {
+    sessionStorage.removeItem('hr_token');
+    sessionStorage.removeItem('hr_expires');
+    return null;
+  }
+  return token;
+}
+
+// Auto-unlock if token is still valid this session
+if (getToken()) {
   document.getElementById('login-overlay').style.display = 'none';
 }
 
 // ════════════════════════════════════════════════════════
-//  DATA
+//  DATA — fetched via Edge Function using session token
 // ════════════════════════════════════════════════════════
 let allResults = [];
 let filtered   = [];
 
 async function loadData() {
   document.getElementById('last-updated').textContent = 'Refreshing…';
+
+  const token = getToken();
+  if (!token) {
+    // Session expired — force re-login
+    document.getElementById('login-overlay').style.display = 'flex';
+    document.getElementById('login-error').textContent = 'Session expired. Please log in again.';
+    return;
+  }
+
   try {
-    const res = await fetch(
-      `${SUPABASE_URL}/rest/v1/exam_results_summary?select=*&order=taken_at.desc`,
-      { headers: { apikey: SUPABASE_ANON, Authorization: 'Bearer ' + SUPABASE_ANON } }
-    );
+    const res = await fetch(AUTH_FUNCTION_URL, {
+      method:  'GET',
+      headers: { 'Authorization': 'Bearer ' + token },
+    });
+
+    if (res.status === 401) {
+      sessionStorage.removeItem('hr_token');
+      sessionStorage.removeItem('hr_expires');
+      document.getElementById('login-overlay').style.display = 'flex';
+      document.getElementById('login-error').textContent = 'Session expired. Please log in again.';
+      return;
+    }
+
     if (!res.ok) throw new Error('Failed to load');
     allResults = await res.json();
     filtered   = [...allResults];
@@ -735,8 +789,8 @@ function exportPDF() {
 function pct(n, total) { return total ? Math.round((n / total) * 100) : 0; }
 function escHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
-// ── Auto-load if already authenticated ───────────────────
-if (sessionStorage.getItem('hr_auth') === '1') {
+// ── Auto-load if token is valid ──────────────────────────
+if (getToken()) {
   loadData();
 }
 </script>
