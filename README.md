@@ -71,8 +71,7 @@ This platform allows training coordinators to send participants a single URL and
 
 ```
 Participant Browser
-  https://mercadoalex.github.io/power-bi-colocation-exam
-  (or your custom AWS domain)
+  https://exam.rootaccess.news  (custom domain via AWS Route 53)
          │
          │  1. Enter access code + registration form
          │  2. Take 20-question timed exam
@@ -124,7 +123,8 @@ power-bi-colocation-exam/
 
 | Resource | URL |
 |---|---|
-| **Exam (GitHub Pages)** | https://mercadoalex.github.io/power-bi-colocation-exam |
+| **Exam** | https://exam.rootaccess.news |
+| **HR Dashboard** | https://exam.rootaccess.news/dashboard.html *(password protected)* |
 | **Edge Function** | https://uzelhlkezkwwpzeydtwi.supabase.co/functions/v1/submit-exam |
 | **Supabase Dashboard** | https://supabase.com/dashboard/project/uzelhlkezkwwpzeydtwi |
 | **Function Logs** | https://supabase.com/dashboard/project/uzelhlkezkwwpzeydtwi/functions |
@@ -188,7 +188,7 @@ Do not distribute beforehand.
 
 📋 Power BI Skills Assessment
 ──────────────────────────────
-URL:   https://mercadoalex.github.io/power-bi-colocation-exam
+URL:   https://exam.rootaccess.news
 Code:  PBI-2025
 ──────────────────────────────
 ⏱ 30 minutes | 20 questions | Individual work
@@ -229,7 +229,7 @@ Check results in any of these ways:
 1. Push this repo to GitHub
 2. Go to **Settings → Pages**
 3. Set **Source** → `Deploy from branch` → `main` → `/ (root)` → **Save**
-4. Exam is live at `https://mercadoalex.github.io/power-bi-colocation-exam`
+4. Exam is live at `https://exam.rootaccess.news`
 
 > ✅ Already done — exam is live.
 
@@ -241,16 +241,16 @@ Check results in any of these ways:
 1. Open your Hosted Zone in the AWS Console
 2. Create a new record:
    - **Type:** `CNAME`
-   - **Name:** `exam` → resolves to `exam.yourdomain.com`
+   - **Name:** `exam` → resolves to `exam.rootaccess.news`
    - **Value:** `mercadoalex.github.io`
 3. Save (propagation: 1–5 minutes)
 
 **In GitHub:**
 1. Go to **Settings → Pages → Custom domain**
-2. Enter `exam.yourdomain.com`
+2. Enter `exam.rootaccess.news`
 3. Enable **Enforce HTTPS**
 
-Participants access the exam at `https://exam.yourdomain.com` ✅
+Participants access the exam at `https://exam.rootaccess.news` ✅
 
 ---
 
@@ -524,7 +524,7 @@ The report URL is returned in the Edge Function response and shown as an "Open F
 - [x] GitHub Pages hosting
 - [x] GitHub Actions auto-deploy
 - [x] Access code protection (client + server)
-- [ ] Point AWS domain → `exam.yourdomain.com`
+- [x] Point AWS domain → `exam.rootaccess.news` ✅
 - [ ] Resend email notifications — update with real API key and domain
 - [ ] Power BI dashboard — connect and publish to Power BI Service
 - [ ] Question bank expansion — randomise 20 questions from a larger pool
