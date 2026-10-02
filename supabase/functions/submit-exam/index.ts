@@ -335,14 +335,15 @@ function buildHtmlReport(result: ExamResult, questionDetail: ReturnType<typeof s
 
 // ── Email to HR ───────────────────────────────────────────────────────────────
 
-async function sendHrEmail(result: ExamResult, resendKey: string, hrEmail: string): Promise<void> {
+async function sendHrEmail(result: ExamResult, resendKey: string, hrEmail: string, ccEmail?: string): Promise<void> {
   const levelColor: Record<string, string> = {
     Beginner: "#1d4ed8", Intermediate: "#b45309", Advanced: "#065f46",
   };
 
-  const body = {
-    from:    "assessments@yourdomain.com",       // ← replace with your verified Resend sender
+  const body: Record<string, unknown> = {
+    from:    "assessments@rootaccess.news",
     to:      [hrEmail],
+    ...(ccEmail ? { cc: [ccEmail] } : {}),
     subject: `[Assessment] ${result.firstName} ${result.lastName} — ${result.level} (${result.percentage}%)`,
     html: `
       <div style="font-family:-apple-system,'Segoe UI',sans-serif;max-width:560px;margin:0 auto;color:#1a1d2e;">
@@ -456,6 +457,7 @@ Deno.serve(async (req: Request) => {
   const supabaseKey  = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
   const resendKey    = Deno.env.get("RESEND_API_KEY") ?? "";
   const hrEmail      = Deno.env.get("HR_EMAIL") ?? "";
+  const ccEmail      = Deno.env.get("HR_CC_EMAIL") ?? "";
 
   const supabase = createClient(supabaseUrl, supabaseKey);
 
@@ -514,7 +516,7 @@ Deno.serve(async (req: Request) => {
 
   // ── Send HR email ───────────────────────────────────────────────────────────
   if (resendKey && hrEmail) {
-    await sendHrEmail(result, resendKey, hrEmail);
+    await sendHrEmail(result, resendKey, hrEmail, ccEmail || undefined);
   }
 
   // ── Return result to browser ────────────────────────────────────────────────
