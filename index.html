@@ -396,7 +396,7 @@
         <strong>About this assessment</strong>
         <ul>
           <li>20 multiple-choice questions covering Power BI fundamentals to advanced features</li>
-          <li>Time limit: <strong>30 minutes</strong></li>
+          <li>Time limit: <strong>25 minutes</strong></li>
           <li>Each question has a single correct answer</li>
           <li>A detailed HR report is generated automatically upon completion</li>
         </ul>
@@ -740,7 +740,8 @@ let participant = {};
 let answers = {};          // { questionIndex: selectedOptionIndex }
 let currentQ = 0;
 let timerInterval = null;
-let secondsRemaining = 30 * 60;
+const EXAM_DURATION_MINUTES = 25;        // ← change exam time here
+let secondsRemaining = EXAM_DURATION_MINUTES * 60;
 let examStartTime = null;
 let examEndTime = null;
 
@@ -804,7 +805,7 @@ function startExam() {
   showPage('page-exam');
   currentQ = 0;
   answers = {};
-  secondsRemaining = 30 * 60;
+  secondsRemaining = EXAM_DURATION_MINUTES * 60;
   examStartTime = Date.now();
   renderQuestion();
   startTimer();
