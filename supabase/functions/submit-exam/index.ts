@@ -465,6 +465,20 @@ Deno.serve(async (req: Request) => {
   const ccEmail      = Deno.env.get("HR_CC_EMAIL") ?? "";
 
   const supabase = createClient(supabaseUrl, supabaseKey);
+
+  // ── Check assessment is open ─────────────────────────────────────────────────
+  const { data: openRow } = await supabase
+    .from("app_settings")
+    .select("value")
+    .eq("key", "assessment_open")
+    .single();
+  if (openRow?.value === "false") {
+    return new Response(
+      JSON.stringify({ error: "This assessment session has ended. Please contact your training coordinator." }),
+      { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
+
   // ── Read active session name ─────────────────────────────────────────────────
   const { data: settingRow } = await supabase
     .from("app_settings")

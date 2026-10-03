@@ -86,7 +86,20 @@ Deno.serve(async (req: Request) => {
       await supabase.from("app_settings")
         .upsert({ key: "active_session", value: sName }, { onConflict: "key" });
 
+      // Also re-open assessment when starting new session
+      await supabase.from("app_settings")
+        .upsert({ key: "assessment_open", value: "true" }, { onConflict: "key" });
+
       return new Response(JSON.stringify({ success: true, sessionName: sName }), {
+        status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    if (action === "end-assessment") {
+      await supabase.from("app_settings")
+        .upsert({ key: "assessment_open", value: "false" }, { onConflict: "key" });
+
+      return new Response(JSON.stringify({ success: true, message: "Assessment closed." }), {
         status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
