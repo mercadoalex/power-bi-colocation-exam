@@ -58,7 +58,12 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    // Store token in DB
+    // Issue 4 — prune expired tokens on every login to prevent table bloat
+    await supabase.from("dashboard_sessions")
+      .delete()
+      .lt("expires_at", new Date().toISOString());
+
+    // Store new token in DB
     const token     = generateToken();
     const expiresAt = new Date(Date.now() + SESSION_TTL_MS).toISOString();
 

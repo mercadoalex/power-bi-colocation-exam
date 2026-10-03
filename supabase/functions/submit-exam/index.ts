@@ -14,6 +14,26 @@
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
+// ── Issue 8: lightweight in-memory rate limiter ───────────────────────────────
+// Allows max 3 requests per IP per 60-second window within a warm function instance.
+// Stateless across cold starts by design — a hard limit requires a DB counter,
+// but this stops casual scripted abuse without adding latency for real users.
+const _rl = new Map<string, { count: number; windowStart: number }>();
+const RL_MAX   = 3;
+const RL_MS    = 60_000;
+
+function isRateLimited(ip: string): boolean {
+  const now   = Date.now();
+  const entry = _rl.get(ip);
+  if (!entry || now - entry.windowStart > RL_MS) {
+    _rl.set(ip, { count: 1, windowStart: now });
+    return false;
+  }
+  entry.count++;
+  if (entry.count > RL_MAX) return true;
+  return false;
+}
+
 // ── Types ────────────────────────────────────────────────────────────────────
 
 interface Participant {
@@ -512,6 +532,17 @@ Deno.serve(async (req: Request) => {
     });
   }
 
+  // ── Issue 8: rate limit POST submissions ────────────────────────────────────
+  const clientIp = req.headers.get("x-forwarded-for")?.split(",")[0].trim()
+                ?? req.headers.get("cf-connecting-ip")
+                ?? "unknown";
+  if (isRateLimited(clientIp)) {
+    return new Response(
+      JSON.stringify({ error: "Too many requests. Please wait a moment and try again." }),
+      { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
+
   // ── Parse body ──────────────────────────────────────────────────────────────
   let payload: unknown;
   try {
@@ -539,7 +570,8 @@ Deno.serve(async (req: Request) => {
   // ── Classify ────────────────────────────────────────────────────────────────
   const { level, recommendation } = classify(correct);
 
-  const takenAt = startedAt ?? new Date().toISOString();
+  // Issue 7 — always use server time; never trust client-supplied startedAt
+  const takenAt = new Date().toISOString();
 
   const result: ExamResult = {
     firstName:   participant.firstName.trim(),
@@ -567,13 +599,14 @@ Deno.serve(async (req: Request) => {
 
   const supabase = createClient(supabaseUrl, supabaseKey);
 
-  // ── Check assessment is open ─────────────────────────────────────────────────
+  // ── Check assessment is open — Issue 5: fail-safe CLOSED if row missing ──────
   const { data: openRow } = await supabase
     .from("app_settings")
     .select("value")
     .eq("key", "assessment_open")
     .single();
-  if (openRow?.value === "false") {
+  // Default to closed if the row doesn't exist (safe default)
+  if (!openRow || openRow.value !== "true") {
     return new Response(
       JSON.stringify({ error: "This assessment session has ended. Please contact your training coordinator." }),
       { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }

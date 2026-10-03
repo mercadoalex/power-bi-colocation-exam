@@ -515,6 +515,10 @@ const VALID_CODES = ['PBI-2025', 'TRAIN-01', 'CONSUL-02'];
 // ════════════════════════════════════════════════════════
 //  QUESTION BANK — 20 Power BI Questions
 // ════════════════════════════════════════════════════════
+// Issue 6 — answer key is XOR-obfuscated so it isn't plain-text in DevTools.
+// _c = correct_index XOR 0xA5. Decode with: q._c ^ 0xA5
+// Answers are still validated server-side; this is a deterrent only.
+const _k = 0xA5;
 const QUESTIONS = [
   // ── BEGINNER (8 questions) ──
   {
@@ -526,7 +530,7 @@ const QUESTIONS = [
       "Software development and code compilation",
       "Email marketing and campaign management"
     ],
-    correct: 1
+    _c: 1^_k
   },
   {
     id: 2, difficulty: "beginner",
@@ -537,7 +541,7 @@ const QUESTIONS = [
       "Power BI Report Builder",
       "All of the above"
     ],
-    correct: 3
+    _c: 3^_k
   },
   {
     id: 3, difficulty: "beginner",
@@ -548,19 +552,19 @@ const QUESTIONS = [
       "A type of filter applied to visuals",
       "A scheduled email report"
     ],
-    correct: 1
+    _c: 1^_k
   },
   {
     id: 4, difficulty: "beginner",
     text: "What file extension does a Power BI Desktop file use?",
     options: [".pbix", ".xlsx", ".csv", ".pbit"],
-    correct: 0
+    _c: 0^_k
   },
   {
     id: 5, difficulty: "beginner",
     text: "Which view in Power BI Desktop allows you to clean and transform data before loading it into your model?",
     options: ["Report View", "Model View", "Power Query Editor", "DAX Editor"],
-    correct: 2
+    _c: 2^_k
   },
   {
     id: 6, difficulty: "beginner",
@@ -571,7 +575,7 @@ const QUESTIONS = [
       "Only bar and line charts",
       "SQL query results"
     ],
-    correct: 1
+    _c: 1^_k
   },
   {
     id: 7, difficulty: "beginner",
@@ -582,7 +586,7 @@ const QUESTIONS = [
       "SharePoint Online list",
       "All of the above"
     ],
-    correct: 3
+    _c: 3^_k
   },
   {
     id: 8, difficulty: "beginner",
@@ -593,7 +597,7 @@ const QUESTIONS = [
       "To merge two tables together",
       "To schedule data refresh intervals"
     ],
-    correct: 1
+    _c: 1^_k
   },
 
   // ── INTERMEDIATE (7 questions) ──
@@ -606,7 +610,7 @@ const QUESTIONS = [
       "Counts the number of rows in a table",
       "Retrieves the current date and time"
     ],
-    correct: 1
+    _c: 1^_k
   },
   {
     id: 10, difficulty: "intermediate",
@@ -617,7 +621,7 @@ const QUESTIONS = [
       "Calculated columns are only available in Power BI Service",
       "Measures can only use SUM and COUNT functions"
     ],
-    correct: 1
+    _c: 1^_k
   },
   {
     id: 11, difficulty: "intermediate",
@@ -628,7 +632,7 @@ const QUESTIONS = [
       "Many-to-One (*:1)",
       "No relationship needed"
     ],
-    correct: 2
+    _c: 2^_k
   },
   {
     id: 12, difficulty: "intermediate",
@@ -639,7 +643,7 @@ const QUESTIONS = [
       "Filters a table based on a condition",
       "Returns all rows from two tables joined together"
     ],
-    correct: 1
+    _c: 1^_k
   },
   {
     id: 13, difficulty: "intermediate",
@@ -650,7 +654,7 @@ const QUESTIONS = [
       "Exports a table to a CSV file",
       "Splits one column into multiple columns"
     ],
-    correct: 1
+    _c: 1^_k
   },
   {
     id: 14, difficulty: "intermediate",
@@ -661,7 +665,7 @@ const QUESTIONS = [
       "Creating new workspaces in Teams",
       "Embedding reports in mobile apps"
     ],
-    correct: 1
+    _c: 1^_k
   },
   {
     id: 15, difficulty: "intermediate",
@@ -672,7 +676,7 @@ const QUESTIONS = [
       "ALL combined with CALCULATE",
       "FILTER"
     ],
-    correct: 2
+    _c: 2^_k
   },
 
   // ── ADVANCED (5 questions) ──
@@ -685,7 +689,7 @@ const QUESTIONS = [
       "They are identical in performance and behavior",
       "Import mode does not support relationships"
     ],
-    correct: 0
+    _c: 0^_k
   },
   {
     id: 17, difficulty: "advanced",
@@ -696,7 +700,7 @@ const QUESTIONS = [
       "Delete an existing relationship from the model",
       "Convert a many-to-many relationship to one-to-one"
     ],
-    correct: 1
+    _c: 1^_k
   },
   {
     id: 18, difficulty: "advanced",
@@ -707,7 +711,7 @@ const QUESTIONS = [
       "A Power Query step that removes duplicate rows",
       "An option to lock report pages from editing"
     ],
-    correct: 1
+    _c: 1^_k
   },
   {
     id: 19, difficulty: "advanced",
@@ -718,7 +722,7 @@ const QUESTIONS = [
       "It creates a calculated table sorted by rank",
       "It works only with date columns"
     ],
-    correct: 1
+    _c: 1^_k
   },
   {
     id: 20, difficulty: "advanced",
@@ -729,9 +733,11 @@ const QUESTIONS = [
       "A Power BI template file (.pbit) with prebuilt visuals",
       "A model created using only calculated tables"
     ],
-    correct: 1
+    _c: 1^_k
   }
 ];
+// Decode helper — used everywhere correct answer is needed client-side
+const qCorrect = q => q._c ^ _k;
 
 // ════════════════════════════════════════════════════════
 //  STATE
@@ -744,6 +750,42 @@ const EXAM_DURATION_MINUTES = 25;        // ← change exam time here
 let secondsRemaining = EXAM_DURATION_MINUTES * 60;
 let examStartTime = null;
 let examEndTime = null;
+let isSubmitting = false;  // Issue 1 — guard against double-submit
+
+// ── Issue 2: restore in-progress exam from sessionStorage ──
+(function restoreSession() {
+  try {
+    const saved = sessionStorage.getItem('pbi_exam_state');
+    if (!saved) return;
+    const s = JSON.parse(saved);
+    // Only restore if exam was started and not yet submitted
+    if (!s.participant || !s.examStartTime || s.submitted) return;
+    // Check if the saved timer still has time left
+    const elapsed = Math.floor((Date.now() - s.examStartTime) / 1000);
+    const remaining = (EXAM_DURATION_MINUTES * 60) - elapsed;
+    if (remaining <= 0) {
+      sessionStorage.removeItem('pbi_exam_state');
+      return;
+    }
+    participant        = s.participant;
+    answers            = s.answers || {};
+    currentQ           = s.currentQ || 0;
+    examStartTime      = s.examStartTime;
+    secondsRemaining   = remaining;
+    // Show exam page immediately
+    document.addEventListener('DOMContentLoaded', () => {
+      showPage('page-exam');
+      renderQuestion();
+      startTimer();
+      // Show a subtle banner so user knows session was restored
+      const banner = document.createElement('div');
+      banner.style.cssText = 'background:#fef9c3;border:1px solid #fde047;border-radius:8px;padding:10px 14px;font-size:13px;color:#713f12;margin-bottom:16px;';
+      banner.textContent = '⚠️ Your previous session was restored. Your timer continued from where you left off.';
+      document.getElementById('question-area').before(banner);
+      setTimeout(() => banner.remove(), 6000);
+    });
+  } catch (_) { sessionStorage.removeItem('pbi_exam_state'); }
+})();
 
 // ════════════════════════════════════════════════════════
 //  REGISTRATION
@@ -826,8 +868,10 @@ async function startExam() {
   showPage('page-exam');
   currentQ = 0;
   answers = {};
+  isSubmitting = false;
   secondsRemaining = EXAM_DURATION_MINUTES * 60;
   examStartTime = Date.now();
+  saveExamState(); // Issue 2 — persist initial state immediately
   renderQuestion();
   startTimer();
 }
@@ -914,6 +958,7 @@ function selectAnswer(optionIndex) {
   });
   const answered = Object.keys(answers).length;
   document.getElementById('nav-dots').textContent = `${answered} of ${QUESTIONS.length} answered`;
+  saveExamState(); // Issue 2 — persist on every answer
 }
 
 function navigate(dir) {
@@ -921,12 +966,21 @@ function navigate(dir) {
   if (next < 0 || next >= QUESTIONS.length) return;
   currentQ = next;
   renderQuestion();
+  saveExamState(); // Issue 2 — persist on navigation
 }
 
 // ════════════════════════════════════════════════════════
 //  FINISH — POST to Supabase Edge Function
 // ════════════════════════════════════════════════════════
 async function finishExam(timedOut) {
+  // Issue 1 — guard against double-submit (timer + button race)
+  if (isSubmitting) return;
+  isSubmitting = true;
+
+  // Issue 3 — disable Finish button immediately
+  const finishBtn = document.getElementById('btn-next');
+  if (finishBtn) { finishBtn.disabled = true; finishBtn.textContent = 'Submitting…'; }
+
   clearInterval(timerInterval);
   examEndTime = Date.now();
 
@@ -941,6 +995,13 @@ async function finishExam(timedOut) {
   document.getElementById('level-badge').textContent = 'Submitting';
   document.getElementById('level-badge').className = 'level-badge';
   document.getElementById('level-desc').textContent = 'Saving your results, please wait…';
+
+  // Issue 2 — mark session as submitted so restore doesn't re-open it
+  try {
+    const saved = JSON.parse(sessionStorage.getItem('pbi_exam_state') || '{}');
+    saved.submitted = true;
+    sessionStorage.setItem('pbi_exam_state', JSON.stringify(saved));
+  } catch (_) {}
 
   // ── POST to Edge Function ──
   let result;
@@ -957,7 +1018,7 @@ async function finishExam(timedOut) {
         accessCode: participant.accessCode,
         answers,
         timeUsed:  timeUsedStr,
-        startedAt: new Date(examStartTime).toISOString(),
+        // Issue 7 — do NOT send startedAt; server uses its own time
       }),
     });
 
@@ -1000,7 +1061,7 @@ function scoreLocally(timeUsedStr) {
     breakdown[d].total++;
     if (answers[i] === undefined) {
       skipped++;
-    } else if (answers[i] === q.correct) {
+    } else if (answers[i] === qCorrect(q)) {
       correct++;
       breakdown[d].correct++;
     } else {
@@ -1090,12 +1151,12 @@ function renderResult(result, timeUsedStr) {
     if (answers[i] === undefined) {
       status = 'Skipped'; statusClass = 'skipped';
       ansText = '<span style="color:var(--muted)">Not answered</span>';
-    } else if (answers[i] === q.correct) {
+    } else if (answers[i] === qCorrect(q)) {
       status = '✓ Correct'; statusClass = 'correct';
       ansText = `<span class="ans-correct">${q.options[answers[i]]}</span>`;
     } else {
       status = '✗ Incorrect'; statusClass = 'wrong';
-      ansText = `<span class="ans-wrong">${q.options[answers[i]]}</span> &nbsp;→&nbsp; Correct: <span class="ans-correct">${q.options[q.correct]}</span>`;
+      ansText = `<span class="ans-wrong">${q.options[answers[i]]}</span> &nbsp;→&nbsp; Correct: <span class="ans-correct">${q.options[qCorrect(q)]}</span>`;
     }
     return `
       <div class="review-item ${statusClass}">
@@ -1128,10 +1189,26 @@ function showPage(id) {
 
 function restartExam() {
   clearInterval(timerInterval);
+  isSubmitting = false;
+  sessionStorage.removeItem('pbi_exam_state');
   document.getElementById('firstName').value = '';
-  document.getElementById('lastName').value = '';
-  document.getElementById('email').value = '';
+  document.getElementById('lastName').value  = '';
+  document.getElementById('email').value     = '';
+  document.getElementById('accessCode').value = '';
   showPage('page-register');
+}
+
+// ── Persist exam state on every answer/navigation (Issue 2) ──
+function saveExamState() {
+  try {
+    sessionStorage.setItem('pbi_exam_state', JSON.stringify({
+      participant,
+      answers,
+      currentQ,
+      examStartTime,
+      submitted: false,
+    }));
+  } catch (_) {}
 }
 </script>
 
