@@ -336,43 +336,65 @@ function buildHtmlReport(result: ExamResult, questionDetail: ReturnType<typeof s
 
 // ── Email to HR ───────────────────────────────────────────────────────────────
 
-async function sendHrEmail(result: ExamResult, resendKey: string, hrEmail: string, ccEmail?: string): Promise<void> {
+// ── Email to participant (their personal result) ──────────────────────────────
+async function sendParticipantEmail(result: ExamResult, resendKey: string, reportUrl: string | null): Promise<void> {
   const levelColor: Record<string, string> = {
     Beginner: "#1d4ed8", Intermediate: "#b45309", Advanced: "#065f46",
   };
+  const levelBg: Record<string, string> = {
+    Beginner: "#dbeafe", Intermediate: "#fef3c7", Advanced: "#d1fae5",
+  };
+  const { track, duration } = classify(result.correct);
 
   const body: Record<string, unknown> = {
     from:    "KMMX Training <assessments@rootaccess.news>",
-    to:      [hrEmail],
-    ...(ccEmail ? { cc: [ccEmail] } : {}),
-    subject: `[PBI-Assessment] ${result.firstName} ${result.lastName} — ${result.level} (${result.percentage}%)`,
-    headers: {
-      "X-Category":    "PBI-Assessment",
-      "X-Assessment":  "Power-BI-Skills",
-    },
+    to:      [result.email],
+    subject: `Your Power BI Assessment Result — ${result.level} (${result.percentage}%)`,
+    headers: { "X-Category": "PBI-Assessment" },
     html: `
       <div style="font-family:-apple-system,'Segoe UI',sans-serif;max-width:560px;margin:0 auto;color:#1a1d2e;">
-        <div style="background:#1a1d2e;padding:14px 20px;border-radius:8px 8px 0 0;">
+        <div style="background:#1a1d2e;padding:14px 20px;border-radius:8px 8px 0 0;display:flex;align-items:center;gap:10px;">
           <span style="background:#f2c811;color:#1a1d2e;font-weight:800;font-size:12px;padding:3px 8px;border-radius:4px;">PBI</span>
-          <span style="color:#fff;font-size:15px;font-weight:600;margin-left:10px;">New Assessment Submission</span>
+          <span style="color:#fff;font-size:15px;font-weight:600;margin-left:6px;">Power BI Skills Assessment</span>
+          <span style="color:#9ca3af;font-size:12px;margin-left:auto;">KMMX Training &amp; Consultancy</span>
         </div>
-        <div style="border:1px solid #e5e7eb;border-top:none;border-radius:0 0 8px 8px;padding:24px;">
-          <p style="margin:0 0 16px;font-size:15px;">A participant has completed the Power BI Skills Assessment.</p>
-          <table style="width:100%;border-collapse:collapse;font-size:14px;">
-            <tr><td style="padding:8px 0;color:#6b7280;width:140px;">Full Name</td>      <td style="padding:8px 0;font-weight:600;">${result.firstName} ${result.lastName}</td></tr>
-            <tr><td style="padding:8px 0;color:#6b7280;">Email</td>                      <td style="padding:8px 0;">${result.email}</td></tr>
-            <tr><td style="padding:8px 0;color:#6b7280;">Score</td>                      <td style="padding:8px 0;font-weight:700;">${result.correct} / ${TOTAL} (${result.percentage}%)</td></tr>
-            <tr><td style="padding:8px 0;color:#6b7280;">Level Assigned</td>             <td style="padding:8px 0;font-weight:800;color:${levelColor[result.level]};">${result.level}</td></tr>
-            <tr><td style="padding:8px 0;color:#6b7280;">Recommended Track</td>          <td style="padding:8px 0;">${classify(result.correct).track} (${classify(result.correct).duration})</td></tr>
-            <tr><td style="padding:8px 0;color:#6b7280;">Time Used</td>                  <td style="padding:8px 0;">${result.timeUsed}</td></tr>
-            <tr><td style="padding:8px 0;color:#6b7280;">Submitted</td>                  <td style="padding:8px 0;">${new Date(result.takenAt).toLocaleString("en-GB")}</td></tr>
-          </table>
-          <div style="margin-top:20px;padding:12px 16px;background:#f7f8fa;border-radius:6px;font-size:13px;color:#374151;">
-            ${result.recommendation}
+        <div style="border:1px solid #e5e7eb;border-top:none;border-radius:0 0 8px 8px;padding:28px;">
+          <p style="font-size:15px;margin:0 0 20px;">Hi <strong>${result.firstName}</strong>,</p>
+          <p style="font-size:14px;color:#374151;margin:0 0 20px;">
+            Thank you for completing the Power BI Skills Assessment. Here are your results:
+          </p>
+
+          <!-- Score hero -->
+          <div style="text-align:center;padding:24px;background:#f7f8fa;border-radius:10px;margin-bottom:20px;">
+            <div style="display:inline-block;background:${levelBg[result.level]};color:${levelColor[result.level]};font-size:12px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;padding:5px 16px;border-radius:99px;margin-bottom:10px;">${result.level}</div>
+            <div style="font-size:48px;font-weight:800;line-height:1;color:#1a1d2e;">${result.percentage}%</div>
+            <div style="font-size:13px;color:#6b7280;margin-top:6px;">${result.correct} correct out of ${TOTAL} questions</div>
           </div>
-          <p style="margin-top:20px;font-size:12px;color:#9ca3af;">
-            View all results in the <a href="https://app.supabase.com" style="color:#2c5de5;">Supabase dashboard</a>
-            or connect Power BI to the exam_results table for live reporting.
+
+          <!-- Detail table -->
+          <table style="width:100%;border-collapse:collapse;font-size:14px;margin-bottom:20px;">
+            <tr style="border-bottom:1px solid #f3f4f6;"><td style="padding:8px 0;color:#6b7280;width:160px;">Score</td><td style="padding:8px 0;font-weight:700;">${result.correct} / ${TOTAL} (${result.percentage}%)</td></tr>
+            <tr style="border-bottom:1px solid #f3f4f6;"><td style="padding:8px 0;color:#6b7280;">Correct</td><td style="padding:8px 0;color:#16a34a;font-weight:600;">${result.correct}</td></tr>
+            <tr style="border-bottom:1px solid #f3f4f6;"><td style="padding:8px 0;color:#6b7280;">Incorrect</td><td style="padding:8px 0;color:#dc2626;font-weight:600;">${result.wrong}</td></tr>
+            <tr style="border-bottom:1px solid #f3f4f6;"><td style="padding:8px 0;color:#6b7280;">Time used</td><td style="padding:8px 0;">${result.timeUsed}</td></tr>
+            <tr><td style="padding:8px 0;color:#6b7280;">Completed</td><td style="padding:8px 0;">${new Date(result.takenAt).toLocaleString("en-GB")}</td></tr>
+          </table>
+
+          <!-- Recommendation -->
+          <div style="background:#eef2ff;border-left:4px solid #2c5de5;padding:14px 16px;border-radius:0 8px 8px 0;font-size:13px;color:#374151;margin-bottom:20px;">
+            <strong style="display:block;margin-bottom:4px;">📚 Recommended Training Track</strong>
+            <strong>${track}</strong> — ${duration}
+          </div>
+
+          ${reportUrl ? `<p style="text-align:center;margin-bottom:20px;">
+            <a href="${reportUrl}" style="display:inline-block;background:#2c5de5;color:#fff;text-decoration:none;padding:10px 24px;border-radius:7px;font-size:14px;font-weight:600;">
+              📄 View Your Full Report
+            </a>
+          </p>` : ""}
+
+          <p style="font-size:12px;color:#9ca3af;margin-top:8px;">
+            Your training coordinator will be in touch regarding next steps.<br>
+            Questions? Contact us at <a href="mailto:info@kmmx.mx" style="color:#2c5de5;">info@kmmx.mx</a>
           </p>
         </div>
       </div>`,
@@ -383,12 +405,51 @@ async function sendHrEmail(result: ExamResult, resendKey: string, hrEmail: strin
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${resendKey}` },
     body:    JSON.stringify(body),
   });
+  if (!res.ok) console.error("Resend participant email error:", await res.text());
+}
 
-  if (!res.ok) {
-    const err = await res.text();
-    console.error("Resend error:", err);
-    // Non-fatal — we don't fail the whole request if email fails
-  }
+// ── Backup copy to coordinator ────────────────────────────────────────────────
+async function sendBackupEmail(result: ExamResult, resendKey: string, backupEmail: string): Promise<void> {
+  const levelColor: Record<string, string> = {
+    Beginner: "#1d4ed8", Intermediate: "#b45309", Advanced: "#065f46",
+  };
+  const { track, duration } = classify(result.correct);
+
+  const body: Record<string, unknown> = {
+    from:    "KMMX Training <assessments@rootaccess.news>",
+    to:      [backupEmail],
+    subject: `[PBI-Assessment] ${result.firstName} ${result.lastName} — ${result.level} (${result.percentage}%)`,
+    headers: { "X-Category": "PBI-Assessment" },
+    html: `
+      <div style="font-family:-apple-system,'Segoe UI',sans-serif;max-width:560px;margin:0 auto;color:#1a1d2e;">
+        <div style="background:#1a1d2e;padding:12px 20px;border-radius:8px 8px 0 0;">
+          <span style="background:#f2c811;color:#1a1d2e;font-weight:800;font-size:12px;padding:3px 8px;border-radius:4px;">PBI</span>
+          <span style="color:#fff;font-size:14px;font-weight:600;margin-left:8px;">New Assessment Submission</span>
+          <span style="color:#9ca3af;font-size:11px;margin-left:8px;">[Backup copy]</span>
+        </div>
+        <div style="border:1px solid #e5e7eb;border-top:none;border-radius:0 0 8px 8px;padding:20px;">
+          <table style="width:100%;border-collapse:collapse;font-size:13px;">
+            <tr><td style="padding:6px 0;color:#6b7280;width:140px;">Participant</td><td style="padding:6px 0;font-weight:600;">${result.firstName} ${result.lastName}</td></tr>
+            <tr><td style="padding:6px 0;color:#6b7280;">Email</td><td style="padding:6px 0;">${result.email}</td></tr>
+            <tr><td style="padding:6px 0;color:#6b7280;">Score</td><td style="padding:6px 0;font-weight:700;">${result.correct} / ${TOTAL} (${result.percentage}%)</td></tr>
+            <tr><td style="padding:6px 0;color:#6b7280;">Level</td><td style="padding:6px 0;font-weight:800;color:${levelColor[result.level]};">${result.level}</td></tr>
+            <tr><td style="padding:6px 0;color:#6b7280;">Track</td><td style="padding:6px 0;">${track} (${duration})</td></tr>
+            <tr><td style="padding:6px 0;color:#6b7280;">Time used</td><td style="padding:6px 0;">${result.timeUsed}</td></tr>
+            <tr><td style="padding:6px 0;color:#6b7280;">Submitted</td><td style="padding:6px 0;">${new Date(result.takenAt).toLocaleString("en-GB")}</td></tr>
+          </table>
+          <p style="margin-top:14px;font-size:11px;color:#9ca3af;">
+            Full results available at <a href="https://exam.rootaccess.news/dashboard.html" style="color:#2c5de5;">exam.rootaccess.news/dashboard.html</a>
+          </p>
+        </div>
+      </div>`,
+  };
+
+  const res = await fetch("https://api.resend.com/emails", {
+    method:  "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${resendKey}` },
+    body:    JSON.stringify(body),
+  });
+  if (!res.ok) console.error("Resend backup email error:", await res.text());
 }
 
 // ── Main Handler ──────────────────────────────────────────────────────────────
@@ -541,9 +602,12 @@ Deno.serve(async (req: Request) => {
     .getPublicUrl(reportPath);
   const reportUrl = publicUrlData?.publicUrl ?? null;
 
-  // ── Send HR email ───────────────────────────────────────────────────────────
-  if (resendKey && hrEmail) {
-    await sendHrEmail(result, resendKey, hrEmail, ccEmail || undefined);
+  // ── Send emails ─────────────────────────────────────────────────────────────
+  if (resendKey) {
+    // 1 — Participant gets their personal result email
+    await sendParticipantEmail(result, resendKey, reportUrl);
+    // 2 — Backup copy goes to coordinator (mercadoalex@gmail.com)
+    if (ccEmail) await sendBackupEmail(result, resendKey, ccEmail);
   }
 
   // ── Return result to browser ────────────────────────────────────────────────
