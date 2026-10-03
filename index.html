@@ -759,11 +759,11 @@ function setError(fieldId, msg) {
   err.textContent = msg || '';
 }
 
-function startExam() {
+async function startExam() {
   const code = document.getElementById('accessCode').value.trim().toUpperCase();
   const fn   = document.getElementById('firstName').value.trim();
   const ln   = document.getElementById('lastName').value.trim();
-  const em   = document.getElementById('email').value.trim();
+  const em   = document.getElementById('email').value.trim().toLowerCase();
   let valid  = true;
 
   // ── Validate access code ──
@@ -791,6 +791,27 @@ function startExam() {
 
   if (!fn || !ln) valid = false;
   if (!valid) return;
+
+  // ── Duplicate email check before starting ──────────────────
+  const startBtn = document.querySelector('#page-register .btn-primary');
+  const origLabel = startBtn.textContent;
+  startBtn.textContent = 'Checking…';
+  startBtn.disabled = true;
+  try {
+    const chkRes = await fetch(SUPABASE_FUNCTION_URL + '?check=duplicate&email=' + encodeURIComponent(em), {
+      method: 'GET',
+      headers: { 'Authorization': 'Bearer ' + SUPABASE_ANON_KEY },
+    });
+    if (chkRes.status === 409) {
+      setError('email', 'This email has already completed the assessment. Each participant may only take the exam once.');
+      return;
+    }
+  } catch (_) {
+    // Network error — allow through; backend will block on submit if truly duplicate
+  } finally {
+    startBtn.textContent = origLabel;
+    startBtn.disabled = false;
+  }
 
   participant = {
     firstName: fn,
@@ -940,6 +961,16 @@ async function finishExam(timedOut) {
       }),
     });
 
+    if (res.status === 409) {
+      const err = await res.json().catch(() => ({}));
+      // Show error on result page — don't fall back to local scoring
+      clearInterval(timerInterval);
+      document.getElementById('score-pct').textContent = '—';
+      document.getElementById('level-badge').textContent = 'Already Submitted';
+      document.getElementById('level-badge').className = 'level-badge level-intermediate';
+      document.getElementById('level-desc').textContent = err.message || 'This email has already submitted the assessment for this session.';
+      return;
+    }
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
       throw new Error(err.error || `HTTP ${res.status}`);

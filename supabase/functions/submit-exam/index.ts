@@ -458,12 +458,52 @@ Deno.serve(async (req: Request) => {
   // CORS — allow the exam frontend origin
   const corsHeaders = {
     "Access-Control-Allow-Origin":  "*",   // tighten to your domain in production
-    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
     "Access-Control-Allow-Headers": "Content-Type, Authorization",
   };
 
   if (req.method === "OPTIONS") {
     return new Response(null, { status: 204, headers: corsHeaders });
+  }
+
+  // ── GET ?check=duplicate&email=... ─ pre-flight duplicate check ──────────────
+  if (req.method === "GET") {
+    const url   = new URL(req.url);
+    const check = url.searchParams.get("check");
+    const email = url.searchParams.get("email")?.trim().toLowerCase() ?? "";
+
+    if (check === "duplicate" && email) {
+      const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+      const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+      const supabase    = createClient(supabaseUrl, supabaseKey);
+
+      // Get the current active session
+      const { data: settingRow } = await supabase
+        .from("app_settings").select("value").eq("key", "active_session").single();
+      const activeSession = settingRow?.value ?? "Session 1";
+
+      const { data: existing } = await supabase
+        .from("exam_results")
+        .select("id")
+        .eq("email", email)
+        .eq("session_name", activeSession)
+        .maybeSingle();
+
+      if (existing) {
+        return new Response(
+          JSON.stringify({ duplicate: true, message: "This email has already completed the assessment for this session." }),
+          { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      return new Response(
+        JSON.stringify({ duplicate: false }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    return new Response(JSON.stringify({ error: "Method not allowed." }), {
+      status: 405, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
 
   if (req.method !== "POST") {
@@ -547,6 +587,20 @@ Deno.serve(async (req: Request) => {
     .eq("key", "active_session")
     .single();
   const activeSession = settingRow?.value ?? "Session 1";
+
+  // ── Duplicate check — same email + same session ──────────────────────────────
+  const { data: existing } = await supabase
+    .from("exam_results")
+    .select("id")
+    .eq("email", result.email)
+    .eq("session_name", activeSession)
+    .maybeSingle();
+  if (existing) {
+    return new Response(
+      JSON.stringify({ error: "duplicate", message: "This email has already submitted the assessment for this session. Each participant may only take the exam once." }),
+      { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
 
   // ── Persist to DB ───────────────────────────────────────────────────────────
   const { data: dbRow, error: dbError } = await supabase
