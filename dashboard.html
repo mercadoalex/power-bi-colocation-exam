@@ -361,6 +361,48 @@
 </div>
 
 <!-- ══════════════════════════════════════════════════════
+     NEW TRAINING TOPIC MODAL (permissions notice)
+═══════════════════════════════════════════════════════ -->
+<div id="new-topic-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:999;align-items:center;justify-content:center;">
+  <div style="background:#fff;border-radius:12px;padding:0;max-width:480px;width:92%;box-shadow:0 8px 48px rgba(0,0,0,.3);overflow:hidden;">
+    <!-- Blue header -->
+    <div style="background:#1d4ed8;padding:20px 28px;display:flex;align-items:center;gap:12px;">
+      <span style="font-size:24px;">🎓</span>
+      <div>
+        <div style="color:#fff;font-size:16px;font-weight:800;line-height:1.2;">New Training Assessment</div>
+        <div style="color:#bfdbfe;font-size:12px;margin-top:2px;">Request a different assessment topic</div>
+      </div>
+    </div>
+    <!-- Body -->
+    <div style="padding:28px;">
+      <!-- Permission notice box -->
+      <div style="background:#fef9c3;border:1.5px solid #fde047;border-radius:8px;padding:16px 18px;margin-bottom:20px;display:flex;gap:12px;align-items:flex-start;">
+        <span style="font-size:22px;line-height:1;">🔐</span>
+        <div>
+          <div style="font-size:13px;font-weight:800;color:#713f12;margin-bottom:4px;">Permission Required</div>
+          <div style="font-size:13px;color:#713f12;line-height:1.7;">
+            The current user does not have the permissions granted to create a new assessment topic.<br>
+            Please contact the administrator to request access.
+          </div>
+        </div>
+      </div>
+      <!-- Contact block -->
+      <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:14px 18px;margin-bottom:20px;font-size:13px;color:#1e40af;line-height:1.7;">
+        <strong style="display:block;margin-bottom:4px;">📧 Contact Admin</strong>
+        To set up a new assessment platform for a different training topic (e.g. Excel, Azure, SQL), reach out to:<br>
+        <a href="mailto:info@kmmx.mx" style="color:#1d4ed8;font-weight:700;text-decoration:none;">info@kmmx.mx</a>
+      </div>
+      <div style="display:flex;justify-content:flex-end;">
+        <button onclick="hideNewTopicModal()"
+          style="padding:9px 28px;border:none;border-radius:7px;background:#1d4ed8;color:#fff;font-size:14px;font-weight:700;font-family:inherit;cursor:pointer;">
+          Got it
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════
      MAIN DASHBOARD
 ═══════════════════════════════════════════════════════ -->
 <div class="main">
@@ -524,6 +566,22 @@
         <button onclick="showEndAssessmentModal()"
           style="width:100%;padding:9px;border:1.5px solid #374151;border-radius:7px;background:#fff;color:#1a1d2e;font-size:13px;font-weight:700;font-family:inherit;cursor:pointer;letter-spacing:.3px;">
           🔒 End Assessment
+        </button>
+      </div>
+
+      <!-- New Training Assessment (other topic) -->
+      <div style="flex:1;min-width:240px;border:1px solid #bfdbfe;border-radius:8px;padding:16px 18px;background:#fff;">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+          <span style="background:#2563eb;color:#fff;font-size:11px;font-weight:700;padding:2px 7px;border-radius:99px;">NEW TOPIC</span>
+        </div>
+        <div style="font-size:14px;font-weight:700;color:#111827;margin-bottom:4px;">🎓 New Training Assessment</div>
+        <div style="font-size:12px;color:#6b7280;line-height:1.6;margin-bottom:14px;">
+          Want to run an assessment for a <strong>different training topic</strong> (not Power BI)?
+          Click here to request a new assessment platform for another subject.
+        </div>
+        <button onclick="showNewTopicModal()"
+          style="width:100%;padding:9px;border:1.5px solid #2563eb;border-radius:7px;background:#fff;color:#1d4ed8;font-size:13px;font-weight:700;font-family:inherit;cursor:pointer;letter-spacing:.3px;">
+          🎓 Request New Assessment
         </button>
       </div>
 
@@ -1032,6 +1090,17 @@ async function confirmEndAssessment() {
     btn.disabled    = false;
   }
 }
+
+// ── New Training Topic modal ─────────────────────────────
+function showNewTopicModal() {
+  document.getElementById('new-topic-modal').style.display = 'flex';
+}
+function hideNewTopicModal() {
+  document.getElementById('new-topic-modal').style.display = 'none';
+}
+document.getElementById('new-topic-modal').addEventListener('click', function(e) {
+  if (e.target === this) hideNewTopicModal();
+});
 
 // ── Export CSV ───────────────────────────────────────────
 function exportCSV() {
