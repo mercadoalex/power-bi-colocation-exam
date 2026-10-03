@@ -465,6 +465,13 @@ Deno.serve(async (req: Request) => {
   const ccEmail      = Deno.env.get("HR_CC_EMAIL") ?? "";
 
   const supabase = createClient(supabaseUrl, supabaseKey);
+  // ── Read active session name ─────────────────────────────────────────────────
+  const { data: settingRow } = await supabase
+    .from("app_settings")
+    .select("value")
+    .eq("key", "active_session")
+    .single();
+  const activeSession = settingRow?.value ?? "Session 1";
 
   // ── Persist to DB ───────────────────────────────────────────────────────────
   const { data: dbRow, error: dbError } = await supabase
@@ -484,6 +491,7 @@ Deno.serve(async (req: Request) => {
       breakdown:      result.breakdown,
       recommendation: result.recommendation,
       taken_at:       result.takenAt,
+      session_name:   activeSession,
     })
     .select("id")
     .single();

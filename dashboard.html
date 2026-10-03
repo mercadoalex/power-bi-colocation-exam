@@ -276,9 +276,40 @@
     <button class="btn-header" onclick="loadData()">↻ Refresh</button>
     <button class="btn-header accent" onclick="exportPDF()">⬇ Export PDF</button>
     <button class="btn-header" onclick="exportCSV()">⬇ Export CSV</button>
+    <button class="btn-header" onclick="showNewSessionModal()" style="background:#dc2626;border-color:#dc2626;">🔄 New Session</button>
     <button class="btn-header" onclick="logout()" style="opacity:.7;">Sign Out</button>
   </div>
 </header>
+
+<!-- ══════════════════════════════════════════════════════
+     NEW SESSION CONFIRMATION MODAL
+═══════════════════════════════════════════════════════ -->
+<div id="new-session-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:999;align-items:center;justify-content:center;">
+  <div style="background:#fff;border-radius:12px;padding:36px 40px;max-width:460px;width:90%;box-shadow:0 8px 40px rgba(0,0,0,.25);">
+    <div style="font-size:32px;text-align:center;margin-bottom:12px;">🔄</div>
+    <h2 style="font-size:18px;font-weight:800;text-align:center;margin-bottom:8px;">Start a New Training Session?</h2>
+    <p style="font-size:14px;color:#6b7280;text-align:center;line-height:1.6;margin-bottom:20px;">
+      This will archive the current session and start a fresh one.<br>
+      <strong>No data will be deleted.</strong> All previous results remain in the database and can be viewed by filtering by session.
+    </p>
+    <div style="background:#fef3c7;border:1px solid #fcd34d;border-radius:8px;padding:12px 16px;margin-bottom:20px;">
+      <div style="font-size:13px;font-weight:700;color:#92400e;margin-bottom:6px;">New session name</div>
+      <input type="text" id="new-session-name" placeholder="e.g. Ford Session 2 — Feb 2025"
+        style="width:100%;border:1.5px solid #fcd34d;border-radius:6px;padding:8px 12px;font-size:14px;font-family:inherit;outline:none;background:#fffbeb;" />
+      <div style="font-size:11px;color:#92400e;margin-top:4px;" id="session-name-error"></div>
+    </div>
+    <div style="display:flex;gap:12px;justify-content:flex-end;">
+      <button onclick="hideNewSessionModal()"
+        style="padding:9px 20px;border:1.5px solid #e5e7eb;border-radius:7px;background:#fff;font-size:14px;font-weight:600;font-family:inherit;cursor:pointer;">
+        Cancel
+      </button>
+      <button onclick="confirmNewSession()"
+        style="padding:9px 20px;border:none;border-radius:7px;background:#dc2626;color:#fff;font-size:14px;font-weight:600;font-family:inherit;cursor:pointer;">
+        Yes, Start New Session
+      </button>
+    </div>
+  </div>
+</div>
 
 <!-- ══════════════════════════════════════════════════════
      MAIN DASHBOARD
@@ -346,6 +377,12 @@
   <!-- Filters -->
   <div class="filters">
     <div class="filter-group">
+      <label>Session</label>
+      <select id="filter-session" onchange="applyFilters()">
+        <option value="">All sessions</option>
+      </select>
+    </div>
+    <div class="filter-group">
       <label>Level</label>
       <select id="filter-level" onchange="applyFilters()">
         <option value="">All levels</option>
@@ -382,18 +419,19 @@
         <thead>
           <tr>
             <th>#</th>
-            <th>Name</th>
-            <th>Email</th>
-            <th>Level</th>
-            <th>Score</th>
-            <th>Correct</th>
-            <th>Time Used</th>
-            <th>Date</th>
-            <th>Report</th>
+              <th>Name</th>
+              <th>Email</th>
+              <th>Level</th>
+              <th>Score</th>
+              <th>Correct</th>
+              <th>Time Used</th>
+              <th>Session</th>
+              <th>Date</th>
+              <th>Report</th>
           </tr>
         </thead>
         <tbody id="table-body">
-          <tr><td colspan="9" class="no-data">Loading results…</td></tr>
+          <tr><td colspan="10" class="no-data">Loading results…</td></tr>
         </tbody>
       </table>
     </div>
@@ -535,7 +573,22 @@ function renderAll() {
   renderDistribution();
   renderDonut();
   renderPriorities();
+  renderSessionFilter();
   renderTable();
+}
+
+// ── Session filter dropdown ──────────────────────────────
+function renderSessionFilter() {
+  const sessions = [...new Set(allResults.map(r => r.session_name).filter(Boolean))].sort();
+  const sel = document.getElementById('filter-session');
+  const current = sel.value;
+  sel.innerHTML = '<option value="">All sessions</option>' +
+    sessions.map(s => `<option value="${escHtml(s)}" ${s === current ? 'selected' : ''}>${escHtml(s)}</option>`).join('');
+  // Auto-select the latest session by default on first load
+  if (!current && sessions.length > 0) {
+    sel.value = sessions[sessions.length - 1];
+    applyFilters();
+  }
 }
 
 // ── KPI cards ────────────────────────────────────────────
@@ -686,11 +739,13 @@ function renderPriorities() {
 
 // ── Filters ──────────────────────────────────────────────
 function applyFilters() {
-  const level  = document.getElementById('filter-level').value;
-  const search = document.getElementById('filter-search').value.toLowerCase();
-  const sort   = document.getElementById('filter-sort').value;
+  const session = document.getElementById('filter-session').value;
+  const level   = document.getElementById('filter-level').value;
+  const search  = document.getElementById('filter-search').value.toLowerCase();
+  const sort    = document.getElementById('filter-sort').value;
 
   filtered = allResults.filter(r => {
+    if (session && r.session_name !== session) return false;
     if (level && r.level !== level) return false;
     if (search && !r.full_name.toLowerCase().includes(search) && !r.email.toLowerCase().includes(search)) return false;
     return true;
@@ -714,9 +769,10 @@ function applyFilters() {
 }
 
 function clearFilters() {
-  document.getElementById('filter-level').value  = '';
-  document.getElementById('filter-search').value = '';
-  document.getElementById('filter-sort').value   = 'taken_at_desc';
+  document.getElementById('filter-session').value = '';
+  document.getElementById('filter-level').value   = '';
+  document.getElementById('filter-search').value  = '';
+  document.getElementById('filter-sort').value    = 'taken_at_desc';
   applyFilters();
 }
 
@@ -724,7 +780,7 @@ function clearFilters() {
 function renderTable() {
   const tbody = document.getElementById('table-body');
   if (!filtered.length) {
-    tbody.innerHTML = `<tr><td colspan="9" class="no-data">No results match the current filters.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="10" class="no-data">No results match the current filters.</td></tr>`;
     return;
   }
 
@@ -757,6 +813,7 @@ function renderTable() {
         </td>
         <td>${r.correct} / 20</td>
         <td>${r.time_used || '—'}</td>
+        <td style="font-size:12px;color:var(--muted);">${escHtml(r.session_name || '—')}</td>
         <td style="color:var(--muted);font-size:12px;">${date} ${time}</td>
         <td>${reportLink}</td>
       </tr>`;
@@ -766,11 +823,86 @@ function renderTable() {
     `Showing ${filtered.length} of ${allResults.length} participants`;
 }
 
+// ── New Session modal ────────────────────────────────────
+function showNewSessionModal() {
+  // Suggest next session name based on existing sessions
+  const sessions = [...new Set(allResults.map(r => r.session_name).filter(Boolean))];
+  const nextNum  = sessions.length + 1;
+  const today    = new Date().toLocaleDateString('en-GB', { month: 'short', year: 'numeric' });
+  document.getElementById('new-session-name').value = `Session ${nextNum} — ${today}`;
+  document.getElementById('session-name-error').textContent = '';
+  document.getElementById('new-session-modal').style.display = 'flex';
+  document.getElementById('new-session-name').focus();
+  document.getElementById('new-session-name').select();
+}
+
+function hideNewSessionModal() {
+  document.getElementById('new-session-modal').style.display = 'none';
+}
+
+async function confirmNewSession() {
+  const name = document.getElementById('new-session-name').value.trim();
+  if (!name) {
+    document.getElementById('session-name-error').textContent = 'Please enter a session name.';
+    return;
+  }
+
+  const sessions = [...new Set(allResults.map(r => r.session_name).filter(Boolean))];
+  if (sessions.includes(name)) {
+    document.getElementById('session-name-error').textContent = 'That session name already exists. Choose a different name.';
+    return;
+  }
+
+  const btn = document.querySelector('#new-session-modal button:last-child');
+  btn.textContent = 'Starting…';
+  btn.disabled    = true;
+
+  try {
+    // Re-authenticate to get a fresh token
+    const storedPw = sessionStorage.getItem('hr_pw');
+    const authRes  = await fetch(AUTH_FUNCTION_URL, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + SUPABASE_ANON_KEY },
+      body:    JSON.stringify({ password: storedPw }),
+    });
+    const { token } = await authRes.json();
+
+    // Call new session endpoint
+    const res  = await fetch(AUTH_FUNCTION_URL + '?action=new-session', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+      body:    JSON.stringify({ sessionName: name }),
+    });
+    const data = await res.json();
+
+    if (!res.ok) throw new Error(data.error || 'Failed to start new session');
+
+    hideNewSessionModal();
+    // Reload data — new session is now active
+    await loadData();
+    // Auto-select the new session in the filter
+    document.getElementById('filter-session').value = name;
+    applyFilters();
+    alert(`✅ New session "${name}" started!\n\nAll future submissions will be tagged with this session name.\nPrevious data is preserved and can be viewed by selecting the session filter.`);
+  } catch (e) {
+    document.getElementById('session-name-error').textContent = e.message;
+  } finally {
+    btn.textContent = 'Yes, Start New Session';
+    btn.disabled    = false;
+  }
+}
+
+// Close modal on backdrop click
+document.getElementById('new-session-modal').addEventListener('click', function(e) {
+  if (e.target === this) hideNewSessionModal();
+});
+
 // ── Export CSV ───────────────────────────────────────────
 function exportCSV() {
-  if (!allResults.length) { alert('No data to export.'); return; }
-  const headers = ['Full Name','Email','Level','Score %','Correct','Wrong','Skipped','Time Used','Date'];
-  const rows = allResults.map(r => [
+  const data = filtered.length ? filtered : allResults;
+  if (!data.length) { alert('No data to export.'); return; }
+  const headers = ['Full Name','Email','Level','Score %','Correct','Wrong','Skipped','Time Used','Session','Date'];
+  const rows = data.map(r => [
     `"${r.full_name}"`,
     `"${r.email}"`,
     r.level,
@@ -779,6 +911,7 @@ function exportCSV() {
     r.wrong,
     r.skipped,
     r.time_used,
+    `"${r.session_name || ''}"`,
     new Date(r.taken_at).toLocaleDateString('en-GB'),
   ]);
   const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');

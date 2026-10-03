@@ -64,6 +64,33 @@ Deno.serve(async (req: Request) => {
 
     await supabase.from("dashboard_sessions").insert({ token, expires_at: expiresAt });
 
+    // Check for new-session action (re-auth before starting a new session)
+    const url    = new URL(req.url);
+    const action = url.searchParams.get("action");
+
+    if (action === "new-session") {
+      // Validate token then handle new session
+      const body2  = await req.clone().json().catch(() => ({}));
+      const sName  = (body2.sessionName ?? "").trim();
+      if (!sName) {
+        return new Response(JSON.stringify({ error: "Session name is required." }), {
+          status: 422, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      // Store new active session name
+      await supabase.from("dashboard_sessions")
+        .update({ active_session: sName })
+        .eq("token", token);
+
+      // Update the global active session in a settings table
+      await supabase.from("app_settings")
+        .upsert({ key: "active_session", value: sName }, { onConflict: "key" });
+
+      return new Response(JSON.stringify({ success: true, sessionName: sName }), {
+        status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     return new Response(JSON.stringify({ token, expiresAt: Date.now() + SESSION_TTL_MS }), {
       status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
