@@ -1,0 +1,2 @@
+[functions.submit-exam]
+verify_jwt = false
