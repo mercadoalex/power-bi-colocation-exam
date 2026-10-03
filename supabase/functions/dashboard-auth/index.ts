@@ -36,7 +36,7 @@ Deno.serve(async (req: Request) => {
 
   // ── POST — validate password, issue token stored in DB ────────────────────
   if (req.method === "POST") {
-    let body: { password?: string };
+    let body: { password?: string; sessionName?: string };
     try { body = await req.json(); }
     catch {
       return new Response(JSON.stringify({ error: "Invalid JSON." }), {
@@ -69,9 +69,8 @@ Deno.serve(async (req: Request) => {
     const action = url.searchParams.get("action");
 
     if (action === "new-session") {
-      // Validate token then handle new session
-      const body2  = await req.clone().json().catch(() => ({}));
-      const sName  = (body2.sessionName ?? "").trim();
+      // sessionName is already in `body` — stream was consumed above, never re-read
+      const sName  = (body.sessionName ?? "").trim();
       if (!sName) {
         return new Response(JSON.stringify({ error: "Session name is required." }), {
           status: 422, headers: { ...corsHeaders, "Content-Type": "application/json" },
