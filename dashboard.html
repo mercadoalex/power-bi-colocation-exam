@@ -403,6 +403,35 @@
 </div>
 
 <!-- ══════════════════════════════════════════════════════
+     REPORT VIEWER MODAL
+═══════════════════════════════════════════════════════ -->
+<div id="report-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:998;flex-direction:column;">
+
+  <!-- Top bar -->
+  <div style="background:#1a1d2e;padding:12px 20px;display:flex;align-items:center;gap:14px;flex-shrink:0;">
+    <span style="background:#f2c811;color:#1a1d2e;font-weight:800;font-size:11px;padding:3px 8px;border-radius:4px;">PBI</span>
+    <div style="flex:1;">
+      <div style="color:#fff;font-size:14px;font-weight:700;" id="rm-title">Assessment Report</div>
+      <div style="color:#9ca3af;font-size:11px;margin-top:1px;" id="rm-meta">—</div>
+    </div>
+    <a id="rm-open-link" href="#" target="_blank"
+       style="color:#f2c811;font-size:12px;font-weight:700;text-decoration:none;padding:6px 14px;border:1.5px solid #f2c811;border-radius:6px;white-space:nowrap;">
+      ↗ Open in new tab
+    </a>
+    <button onclick="closeReportModal()"
+      style="background:none;border:none;color:#9ca3af;font-size:24px;cursor:pointer;line-height:1;margin-left:4px;">×</button>
+  </div>
+
+  <!-- iframe -->
+  <iframe id="report-iframe"
+    style="flex:1;width:100%;border:none;background:#fff;"
+    sandbox="allow-same-origin allow-scripts"
+    src="about:blank">
+  </iframe>
+
+</div>
+
+<!-- ══════════════════════════════════════════════════════
      SUSPICIOUS ACTIVITY DRILL-DOWN MODAL
 ═══════════════════════════════════════════════════════ -->
 <div id="suspicious-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:999;align-items:center;justify-content:center;overflow-y:auto;padding:20px;">
@@ -532,19 +561,21 @@
         <thead>
           <tr>
             <th>#</th>
-              <th>Name</th>
-              <th>Email</th>
-              <th>Level</th>
-              <th>Score</th>
-              <th>Correct</th>
-              <th>Time Used</th>
-              <th>Session</th>
-              <th>Date</th>
-              <th>Report</th>
+            <th>Name</th>
+            <th>Email</th>
+            <th>Level</th>
+            <th>Score</th>
+            <th>Correct</th>
+            <th>Time Used</th>
+            <th>Avg/Q</th>
+            <th>Integrity</th>
+            <th>Session</th>
+            <th>Date</th>
+            <th>Report</th>
           </tr>
         </thead>
         <tbody id="table-body">
-          <tr><td colspan="10" class="no-data">Loading results…</td></tr>
+          <tr><td colspan="12" class="no-data">Loading results…</td></tr>
         </tbody>
       </table>
     </div>
@@ -963,12 +994,16 @@ function renderTable() {
     const date = new Date(r.taken_at).toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' });
     const time = new Date(r.taken_at).toLocaleTimeString('en-GB', { hour:'2-digit', minute:'2-digit' });
     const barColor = { Beginner: '#3b82f6', Intermediate: '#f59e0b', Advanced: '#10b981' }[r.level];
-    const reportLink = r.id
-      ? `<a href="https://uzelhlkezkwwpzeydtwi.supabase.co/storage/v1/object/public/exam-reports/reports/${r.id}.html"
-            target="_blank" style="color:var(--primary);font-size:12px;text-decoration:none;font-weight:600;">
-            📄 View
-         </a>`
-      : '—';
+    const reportUrl = r.id
+      ? `https://uzelhlkezkwwpzeydtwi.supabase.co/storage/v1/object/public/exam-reports/reports/${r.id}.html`
+      : null;
+    const reportLink = reportUrl
+      ? `<button onclick="openReportModal('${r.id}',${i})"
+           style="display:inline-flex;align-items:center;gap:5px;padding:5px 11px;background:#f7f8fa;border:1.5px solid #e5e7eb;border-radius:6px;font-size:12px;font-weight:700;color:#1a1d2e;cursor:pointer;font-family:inherit;white-space:nowrap;"
+           title="View full assessment report">
+           📄 View Report
+         </button>`
+      : '<span style="color:#9ca3af;font-size:12px;">—</span>';
 
     // Avg time per question
     const avg = r.avg_time_per_q != null ? `${r.avg_time_per_q}s/Q` : '—';
@@ -1007,6 +1042,37 @@ function renderTable() {
   document.getElementById('filter-count').textContent =
     `Showing ${filtered.length} of ${allResults.length} participants`;
 }
+
+// ── Report viewer modal ──────────────────────────────────
+function openReportModal(rowId, filteredIdx) {
+  const r   = filtered[filteredIdx];
+  if (!r) return;
+  const url = `https://uzelhlkezkwwpzeydtwi.supabase.co/storage/v1/object/public/exam-reports/reports/${rowId}.html`;
+  const date = new Date(r.taken_at).toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' });
+  const levelColors = { Beginner:'#3b82f6', Intermediate:'#f59e0b', Advanced:'#10b981' };
+  const dot = `<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${levelColors[r.level]};margin-right:5px;"></span>`;
+
+  document.getElementById('rm-title').innerHTML = `${escHtml(r.full_name)}`;
+  document.getElementById('rm-meta').innerHTML  =
+    `${dot}${r.level} &nbsp;·&nbsp; ${r.percentage}% &nbsp;·&nbsp; ${r.session_name || 'Session 1'} &nbsp;·&nbsp; ${date}`;
+  document.getElementById('rm-open-link').href  = url;
+  document.getElementById('report-iframe').src  = url;
+
+  const modal = document.getElementById('report-modal');
+  modal.style.display = 'flex';
+}
+
+function closeReportModal() {
+  document.getElementById('report-modal').style.display = 'none';
+  document.getElementById('report-iframe').src = 'about:blank'; // stop loading
+}
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    closeReportModal();
+    closeSuspiciousModal();
+  }
+});
 
 // ── Suspicious activity drill-down ──────────────────────
 function openSuspiciousModal(rowId, filteredIdx) {
