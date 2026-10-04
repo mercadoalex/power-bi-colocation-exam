@@ -544,10 +544,10 @@
             <th>Score</th>
             <th>Correct</th>
             <th>Time Used</th>
-            <th>Avg/Q</th>
             <th>Integrity</th>
-            <th>Date</th>
             <th>Report</th>
+            <th>Date</th>
+            <th>Avg/Q</th>
           </tr>
         </thead>
         <tbody id="table-body">
@@ -1017,10 +1017,10 @@ function renderTable() {
         </td>
         <td>${r.correct} / 20</td>
         <td>${r.time_used || '—'}</td>
-        <td style="font-size:12px;color:var(--muted);">${avg}</td>
         <td style="font-size:12px;">${suspFlag}</td>
-        <td style="color:var(--muted);font-size:12px;white-space:nowrap;">${dateTime}</td>
         <td>${reportLink}</td>
+        <td style="color:var(--muted);font-size:12px;white-space:nowrap;">${dateTime}</td>
+        <td style="font-size:12px;color:var(--muted);">${avg}</td>
       </tr>`;
   }).join('');
 
