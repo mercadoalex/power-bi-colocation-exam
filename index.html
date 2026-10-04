@@ -228,6 +228,59 @@
       margin-top: 28px;
       gap: 12px;
     }
+    /* ── Anti-cheat: no text selection on exam content ── */
+    #page-exam .question-header,
+    #page-exam .question-text,
+    #page-exam .options,
+    #page-exam .option-label {
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    /* ── Tab-blur overlay ────────────────────────────── */
+    #blur-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      background: rgba(26,29,46,0.82);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      text-align: center;
+      padding: 32px;
+    }
+    #blur-overlay.active { display: flex; }
+    #blur-overlay .blur-icon  { font-size: 48px; margin-bottom: 16px; }
+    #blur-overlay .blur-title { color: #fff; font-size: 20px; font-weight: 800; margin-bottom: 8px; }
+    #blur-overlay .blur-sub   { color: #9ca3af; font-size: 14px; margin-bottom: 24px; line-height: 1.6; }
+    #blur-overlay .blur-btn   {
+      padding: 10px 28px; border: none; border-radius: 8px;
+      background: #f2c811; color: #1a1d2e;
+      font-size: 14px; font-weight: 800; font-family: inherit; cursor: pointer;
+    }
+
+    /* ── Copy-warning toast ──────────────────────────── */
+    #copy-toast {
+      display: none;
+      position: fixed;
+      bottom: 24px; left: 50%; transform: translateX(-50%);
+      background: #dc2626; color: #fff;
+      padding: 10px 22px; border-radius: 8px;
+      font-size: 13px; font-weight: 700;
+      z-index: 10000; white-space: nowrap;
+      box-shadow: 0 4px 16px rgba(0,0,0,.2);
+    }
+    #copy-toast.show { display: block; }
+
+    /* ── Result integrity row ────────────────────────── */
+    .integrity-row {
+      background: #fef9c3; border: 1px solid #fde047;
+      border-radius: 8px; padding: 12px 16px;
+      font-size: 13px; color: #713f12; margin-bottom: 14px;
+    }
 
     /* ── Result ──────────────────────────────────────── */
     .result-hero {
@@ -410,6 +463,17 @@
     </div>
   </div>
 </div>
+<!-- ── Anti-cheat elements (outside page flow) ───────── -->
+<div id="blur-overlay">
+  <div class="blur-icon">🔒</div>
+  <div class="blur-title">Exam paused</div>
+  <div class="blur-sub">
+    You navigated away from the exam window.<br>
+    Your timer is still running.
+  </div>
+  <button class="blur-btn" onclick="resumeFromBlur()">↩ Return to Exam</button>
+</div>
+<div id="copy-toast">⛔ Copying exam content is not permitted.</div>
 
 <!-- ════════════════════════════════════════════════════
      PAGE 2 — EXAM
@@ -484,6 +548,12 @@
       <div class="report-section">
         <h3>📝 Recommendation</h3>
         <div id="report-recommendation" style="font-size:14px; line-height:1.7;"></div>
+      </div>
+
+      <!-- Integrity notice — only shown if N > 0 (populated by renderResult) -->
+      <div id="integrity-section" style="display:none;" class="report-section">
+        <h3>⚠️ Exam Integrity Notes</h3>
+        <div id="integrity-body"></div>
       </div>
 
       <div class="report-section">
@@ -752,6 +822,74 @@ let examStartTime = null;
 let examEndTime = null;
 let isSubmitting = false;  // Issue 1 — guard against double-submit
 
+// ── Anti-cheat counters ───────────────────────────────
+let focusLostCount  = 0;   // tab/window left during exam
+let copyAttempts    = 0;   // Ctrl+C or copy event fired
+let examPageActive  = false; // true only while exam page is shown
+
+// ── Anti-cheat: disable right-click on entire page ───
+document.addEventListener('contextmenu', e => {
+  if (examPageActive) e.preventDefault();
+});
+
+// ── Anti-cheat: keyboard guard (copy / select-all / save / print) ───
+document.addEventListener('keydown', e => {
+  if (!examPageActive) return;
+  const key = e.key.toLowerCase();
+  // Block Ctrl/Cmd + C, A, S, P, U (view-source)
+  if ((e.ctrlKey || e.metaKey) && ['c','a','s','p','u'].includes(key)) {
+    e.preventDefault();
+    if (key === 'c' || key === 'a') {
+      copyAttempts++;
+      showCopyToast();
+    }
+  }
+  // Block PrintScreen
+  if (key === 'printscreen') {
+    e.preventDefault();
+    copyAttempts++;
+    showCopyToast();
+  }
+});
+
+// ── Anti-cheat: intercept copy/cut events ────────────
+document.addEventListener('copy', e => {
+  if (!examPageActive) return;
+  e.preventDefault();
+  copyAttempts++;
+  showCopyToast();
+});
+document.addEventListener('cut', e => {
+  if (examPageActive) e.preventDefault();
+});
+
+// ── Anti-cheat: tab / window blur ────────────────────
+document.addEventListener('visibilitychange', () => {
+  if (!examPageActive) return;
+  if (document.hidden) {
+    focusLostCount++;
+    document.getElementById('blur-overlay').classList.add('active');
+  }
+});
+window.addEventListener('blur', () => {
+  if (!examPageActive) return;
+  focusLostCount++;
+  document.getElementById('blur-overlay').classList.add('active');
+});
+
+function resumeFromBlur() {
+  document.getElementById('blur-overlay').classList.remove('active');
+}
+
+// ── Copy toast helper ─────────────────────────────────
+let _toastTimer = null;
+function showCopyToast() {
+  const t = document.getElementById('copy-toast');
+  t.classList.add('show');
+  clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(() => t.classList.remove('show'), 2800);
+}
+
 // ── Issue 2: restore in-progress exam from sessionStorage ──
 (function restoreSession() {
   try {
@@ -1015,9 +1153,11 @@ async function finishExam(timedOut) {
           lastName:  participant.lastName,
           email:     participant.email,
         },
-        accessCode: participant.accessCode,
+        accessCode:    participant.accessCode,
         answers,
-        timeUsed:  timeUsedStr,
+        timeUsed:      timeUsedStr,
+        focusLost:     focusLostCount,
+        copyAttempts:  copyAttempts,
         // Issue 7 — do NOT send startedAt; server uses its own time
       }),
     });
@@ -1145,6 +1285,17 @@ function renderResult(result, timeUsedStr) {
   // Recommendation
   document.getElementById('report-recommendation').innerHTML = recommendation;
 
+  // ── Integrity section — only shown if N > 0 ──────────
+  const fl = result.focusLost    ?? focusLostCount;
+  const ca = result.copyAttempts ?? copyAttempts;
+  if (fl > 0 || ca > 0) {
+    const rows = [];
+    if (fl > 0) rows.push(`<div class="integrity-row">👁 <strong>Tab / window left during exam:</strong> ${fl} time${fl !== 1 ? 's' : ''}. The exam was paused each time and the timer kept running.</div>`);
+    if (ca > 0) rows.push(`<div class="integrity-row">⛔ <strong>Copy attempt${ca !== 1 ? 's' : ''} detected:</strong> ${ca} time${ca !== 1 ? 's' : ''}. Content copying was blocked.</div>`);
+    document.getElementById('integrity-body').innerHTML = rows.join('');
+    document.getElementById('integrity-section').style.display = '';
+  }
+
   // Question review (always rendered locally from QUESTIONS + answers)
   const reviewHtml = QUESTIONS.map((q, i) => {
     let status, statusClass, ansText;
@@ -1185,15 +1336,25 @@ function showPage(id) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.getElementById(id).classList.add('active');
   window.scrollTo(0, 0);
+  // Anti-cheat guards only active on the exam page
+  examPageActive = (id === 'page-exam');
+  if (!examPageActive) {
+    document.getElementById('blur-overlay').classList.remove('active');
+  }
 }
 
 function restartExam() {
   clearInterval(timerInterval);
-  isSubmitting = false;
+  isSubmitting   = false;
+  focusLostCount = 0;
+  copyAttempts   = 0;
+  examPageActive = false;
   sessionStorage.removeItem('pbi_exam_state');
-  document.getElementById('firstName').value = '';
-  document.getElementById('lastName').value  = '';
-  document.getElementById('email').value     = '';
+  document.getElementById('integrity-section').style.display = 'none';
+  document.getElementById('integrity-body').innerHTML = '';
+  document.getElementById('firstName').value  = '';
+  document.getElementById('lastName').value   = '';
+  document.getElementById('email').value      = '';
   document.getElementById('accessCode').value = '';
   showPage('page-register');
 }

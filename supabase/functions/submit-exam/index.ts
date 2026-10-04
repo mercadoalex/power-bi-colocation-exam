@@ -43,11 +43,12 @@ interface Participant {
 }
 
 interface SubmitPayload {
-  participant: Participant;
-  accessCode:  string;
-  answers:     Record<number, number>; // { questionIndex: selectedOptionIndex }
-  timeUsed:    string;                 // "MM:SS"
-  startedAt:   string;                 // ISO timestamp
+  participant:  Participant;
+  accessCode:   string;
+  answers:      Record<number, number>; // { questionIndex: selectedOptionIndex }
+  timeUsed:     string;                 // "MM:SS"
+  focusLost?:   number;                 // tab-blur count
+  copyAttempts?: number;                // blocked copy attempts
 }
 
 interface QuestionMeta {
@@ -65,20 +66,22 @@ interface DifficultyBreakdown {
 }
 
 interface ExamResult {
-  firstName:   string;
-  lastName:    string;
-  email:       string;
-  score:       number;
-  percentage:  number;
-  level:       "Beginner" | "Intermediate" | "Advanced";
-  correct:     number;
-  wrong:       number;
-  skipped:     number;
-  timeUsed:    string;
-  answers:     Record<number, number>;
-  breakdown:   Record<string, DifficultyBreakdown>;
+  firstName:    string;
+  lastName:     string;
+  email:        string;
+  score:        number;
+  percentage:   number;
+  level:        "Beginner" | "Intermediate" | "Advanced";
+  correct:      number;
+  wrong:        number;
+  skipped:      number;
+  timeUsed:     string;
+  answers:      Record<number, number>;
+  breakdown:    Record<string, DifficultyBreakdown>;
   recommendation: string;
-  takenAt:     string;
+  takenAt:      string;
+  focusLost:    number;
+  copyAttempts: number;
 }
 
 // ── Answer Key ────────────────────────────────────────────────────────────────
@@ -561,7 +564,10 @@ Deno.serve(async (req: Request) => {
     });
   }
 
-  const { participant, accessCode, answers, timeUsed, startedAt } = payload as SubmitPayload;
+  const { participant, accessCode, answers, timeUsed,
+          focusLost: rawFocusLost, copyAttempts: rawCopyAttempts } = payload as SubmitPayload;
+  const focusLost    = Math.max(0, Math.min(999, Number(rawFocusLost    ?? 0) || 0));
+  const copyAttempts = Math.max(0, Math.min(999, Number(rawCopyAttempts ?? 0) || 0));
 
   // ── Score ───────────────────────────────────────────────────────────────────
   const { correct, wrong, skipped, breakdown, questionDetail } = scoreExam(answers);
@@ -574,10 +580,10 @@ Deno.serve(async (req: Request) => {
   const takenAt = new Date().toISOString();
 
   const result: ExamResult = {
-    firstName:   participant.firstName.trim(),
-    lastName:    participant.lastName.trim(),
-    email:       participant.email.trim().toLowerCase(),
-    score:       correct,
+    firstName:    participant.firstName.trim(),
+    lastName:     participant.lastName.trim(),
+    email:        participant.email.trim().toLowerCase(),
+    score:        correct,
     percentage,
     level,
     correct,
@@ -588,6 +594,8 @@ Deno.serve(async (req: Request) => {
     breakdown,
     recommendation,
     takenAt,
+    focusLost,
+    copyAttempts,
   };
 
   // ── Supabase client (service role — bypasses RLS for inserts) ───────────────
@@ -654,6 +662,8 @@ Deno.serve(async (req: Request) => {
       recommendation: result.recommendation,
       taken_at:       result.takenAt,
       session_name:   activeSession,
+      focus_lost:     result.focusLost,
+      copy_attempts:  result.copyAttempts,
     })
     .select("id")
     .single();
@@ -700,17 +710,19 @@ Deno.serve(async (req: Request) => {
   // ── Return result to browser ────────────────────────────────────────────────
   return new Response(
     JSON.stringify({
-      success:    true,
+      success:      true,
       resultId,
       reportUrl,
-      score:      result.correct,
-      percentage: result.percentage,
-      level:      result.level,
-      correct:    result.correct,
-      wrong:      result.wrong,
-      skipped:    result.skipped,
-      breakdown:  result.breakdown,
+      score:        result.correct,
+      percentage:   result.percentage,
+      level:        result.level,
+      correct:      result.correct,
+      wrong:        result.wrong,
+      skipped:      result.skipped,
+      breakdown:    result.breakdown,
       recommendation: result.recommendation,
+      focusLost:    result.focusLost,
+      copyAttempts: result.copyAttempts,
     }),
     { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
   );
