@@ -1002,17 +1002,21 @@ function renderTable() {
   const levelColor = { Beginner: 'beginner', Intermediate: 'intermediate', Advanced: 'advanced' };
 
   tbody.innerHTML = filtered.map((r, i) => {
-    const date = new Date(r.taken_at).toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' });
-    const time = new Date(r.taken_at).toLocaleTimeString('en-GB', { hour:'2-digit', minute:'2-digit' });
+    // Single compact datetime: "02 Oct 2026 · 17:26" — no wrapping
+    const dt = new Date(r.taken_at);
+    const dateTime = dt.toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' })
+                   + ' · '
+                   + dt.toLocaleTimeString('en-GB', { hour:'2-digit', minute:'2-digit' });
     const barColor = { Beginner: '#3b82f6', Intermediate: '#f59e0b', Advanced: '#10b981' }[r.level];
     const reportUrl = r.id
       ? `https://uzelhlkezkwwpzeydtwi.supabase.co/storage/v1/object/public/exam-reports/reports/${r.id}.html`
       : null;
     const reportLink = reportUrl
       ? `<button onclick="openReportModal('${r.id}',${i})"
-           style="display:inline-flex;align-items:center;gap:5px;padding:5px 11px;background:#f7f8fa;border:1.5px solid #e5e7eb;border-radius:6px;font-size:12px;font-weight:700;color:#1a1d2e;cursor:pointer;font-family:inherit;white-space:nowrap;"
+           style="display:inline-flex;align-items:center;gap:4px;padding:4px 10px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:6px;font-size:11px;font-weight:700;color:#1d4ed8;cursor:pointer;font-family:inherit;white-space:nowrap;transition:background .15s;"
+           onmouseover="this.style.background='#dbeafe'" onmouseout="this.style.background='#eff6ff'"
            title="View full assessment report">
-           📄 View Report
+           📄 Report
          </button>`
       : '<span style="color:#9ca3af;font-size:12px;">—</span>';
 
@@ -1022,9 +1026,9 @@ function renderTable() {
     // Suspicious flag
     const suspFlag = r.suspicious
       ? `<button onclick="openSuspiciousModal(${r.id ? `'${r.id}'` : 'null'},${i})"
-           style="background:none;border:none;cursor:pointer;padding:0;font-size:13px;"
-           title="View integrity report">⚠️ Suspicious</button>`
-      : '<span style="color:#22c55e;font-size:12px;">✓</span>';
+           style="display:inline-flex;align-items:center;gap:3px;background:none;border:none;cursor:pointer;padding:0;font-size:12px;color:#7c3aed;font-weight:600;font-family:inherit;"
+           title="View integrity report">⚠️ Review</button>`
+      : '<span style="color:#22c55e;font-size:13px;">✓</span>';
 
     return `
       <tr style="${r.suspicious ? 'background:#faf5ff;' : ''}">
@@ -1044,7 +1048,7 @@ function renderTable() {
         <td>${r.time_used || '—'}</td>
         <td style="font-size:12px;color:var(--muted);">${avg}</td>
         <td style="font-size:12px;">${suspFlag}</td>
-        <td style="color:var(--muted);font-size:12px;">${date} ${time}</td>
+        <td style="color:var(--muted);font-size:12px;white-space:nowrap;">${dateTime}</td>
         <td>${reportLink}</td>
       </tr>`;
   }).join('');
