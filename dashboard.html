@@ -405,36 +405,7 @@
 <!-- ══════════════════════════════════════════════════════
      REPORT VIEWER MODAL
 ═══════════════════════════════════════════════════════ -->
-<div id="report-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:998;flex-direction:column;">
-
-  <!-- Top bar -->
-  <div style="background:#1a1d2e;padding:12px 20px;display:flex;align-items:center;gap:14px;flex-shrink:0;">
-    <span style="background:#f2c811;color:#1a1d2e;font-weight:800;font-size:11px;padding:3px 8px;border-radius:4px;">PBI</span>
-    <div style="flex:1;">
-      <div style="color:#fff;font-size:14px;font-weight:700;" id="rm-title">Assessment Report</div>
-      <div style="color:#9ca3af;font-size:11px;margin-top:1px;" id="rm-meta">—</div>
-    </div>
-    <a id="rm-open-link" href="#" target="_blank"
-       style="color:#f2c811;font-size:12px;font-weight:700;text-decoration:none;padding:6px 14px;border:1.5px solid #f2c811;border-radius:6px;white-space:nowrap;">
-      ↗ Open in new tab
-    </a>
-    <button onclick="closeReportModal()"
-      style="background:none;border:none;color:#9ca3af;font-size:24px;cursor:pointer;line-height:1;margin-left:4px;">×</button>
-  </div>
-
-  <!-- loading state -->
-  <div id="report-loading" style="flex:1;display:flex;align-items:center;justify-content:center;background:#f4f6fb;flex-direction:column;gap:12px;">
-    <div style="font-size:32px;">📄</div>
-    <div style="font-size:14px;color:#6b7280;">Loading report…</div>
-  </div>
-
-  <!-- iframe — src set via blob URL to bypass storage CSP/content-type issues -->
-  <iframe id="report-iframe"
-    style="display:none;flex:1;width:100%;border:none;background:#fff;"
-    src="about:blank">
-  </iframe>
-
-</div>
+<!-- report-modal removed — reports now open in a dedicated browser window -->
 
 <!-- ══════════════════════════════════════════════════════
      SUSPICIOUS ACTIVITY DRILL-DOWN MODAL
@@ -1057,61 +1028,31 @@ function renderTable() {
     `Showing ${filtered.length} of ${allResults.length} participants`;
 }
 
-// ── Report viewer modal ──────────────────────────────────
-let _reportBlobUrl = null;
-
+// ── Report viewer — opens in a dedicated browser window ─────────────────────
 async function openReportModal(rowId, filteredIdx) {
-  const r   = filtered[filteredIdx];
-  if (!r) return;
   const url = `https://uzelhlkezkwwpzeydtwi.supabase.co/storage/v1/object/public/exam-reports/reports/${rowId}.html`;
-  const date = new Date(r.taken_at).toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' });
-  const levelColors = { Beginner:'#3b82f6', Intermediate:'#f59e0b', Advanced:'#10b981' };
-  const dot = `<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${levelColors[r.level]};margin-right:5px;"></span>`;
-
-  document.getElementById('rm-title').innerHTML = escHtml(r.full_name);
-  document.getElementById('rm-meta').innerHTML  =
-    `${dot}${r.level} &nbsp;·&nbsp; ${r.percentage}% &nbsp;·&nbsp; ${r.session_name || 'Session 1'} &nbsp;·&nbsp; ${date}`;
-  document.getElementById('rm-open-link').href  = url;
-
-  // Show modal with loading state
-  const modal   = document.getElementById('report-modal');
-  const iframe  = document.getElementById('report-iframe');
-  const loading = document.getElementById('report-loading');
-  modal.style.display = 'flex';
-  loading.style.display = 'flex';
-  iframe.style.display  = 'none';
-
   try {
-    // Fetch raw HTML and render via blob URL — bypasses storage text/plain + CSP headers
+    // Fetch and re-serve via blob URL so the browser renders it as HTML
+    // regardless of the storage bucket's content-type header
     const res  = await fetch(url);
     const html = await res.text();
-    if (_reportBlobUrl) URL.revokeObjectURL(_reportBlobUrl);
-    _reportBlobUrl = URL.createObjectURL(new Blob([html], { type: 'text/html' }));
-    iframe.src = _reportBlobUrl;
-    iframe.onload = () => {
-      loading.style.display = 'none';
-      iframe.style.display  = 'flex';
-      iframe.style.flex     = '1';
-    };
+    const blob = new Blob([html], { type: 'text/html' });
+    const blobUrl = URL.createObjectURL(blob);
+    const win = window.open(blobUrl, '_blank');
+    // Revoke after the window has had time to load
+    if (win) setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
+    else {
+      // Popup blocked — fall back to direct URL
+      window.open(url, '_blank');
+    }
   } catch (e) {
-    loading.innerHTML = `<div style="font-size:14px;color:#dc2626;">Failed to load report.<br><a href="${url}" target="_blank" style="color:#2c5de5;">Open directly ↗</a></div>`;
+    // Network error — open storage URL directly
+    window.open(url, '_blank');
   }
-}
-
-function closeReportModal() {
-  document.getElementById('report-modal').style.display = 'none';
-  document.getElementById('report-iframe').style.display = 'none';
-  document.getElementById('report-iframe').src = 'about:blank';
-  document.getElementById('report-loading').style.display = 'flex';
-  document.getElementById('report-loading').innerHTML = `<div style="font-size:32px;">📄</div><div style="font-size:14px;color:#6b7280;">Loading report…</div>`;
-  if (_reportBlobUrl) { URL.revokeObjectURL(_reportBlobUrl); _reportBlobUrl = null; }
 }
 
 document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') {
-    closeReportModal();
-    closeSuspiciousModal();
-  }
+  if (e.key === 'Escape') closeSuspiciousModal();
 });
 
 // ── Suspicious activity drill-down ──────────────────────
