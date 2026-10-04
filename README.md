@@ -426,21 +426,28 @@ Submitted:    15 Jan 2025 at 09:34
 
 ```sql
 exam_results
-├── id              uuid          PRIMARY KEY  (auto-generated)
-├── first_name      text          NOT NULL
-├── last_name       text          NOT NULL
-├── email           text          NOT NULL
-├── score           int           NOT NULL  -- raw correct answers (0–20)
-├── percentage      int           NOT NULL  -- 0–100
-├── level           text          NOT NULL  -- 'Beginner' | 'Intermediate' | 'Advanced'
-├── correct         int           NOT NULL
-├── wrong           int           NOT NULL
-├── skipped         int           NOT NULL
-├── time_used       text          NOT NULL  -- "MM:SS"
-├── answers         jsonb                   -- { "0": 1, "1": 3, ... }
-├── breakdown       jsonb                   -- { beginner: {correct,total,pct}, ... }
-├── recommendation  text
-└── taken_at        timestamptz   DEFAULT now()
+├── id                  uuid          PRIMARY KEY  (auto-generated)
+├── first_name          text          NOT NULL
+├── last_name           text          NOT NULL
+├── email               text          NOT NULL
+├── score               int           NOT NULL  -- raw correct answers (0–20)
+├── percentage          int           NOT NULL  -- 0–100
+├── level               text          NOT NULL  -- 'Beginner' | 'Intermediate' | 'Advanced'
+├── correct             int           NOT NULL
+├── wrong               int           NOT NULL
+├── skipped             int           NOT NULL
+├── time_used           text          NOT NULL  -- "MM:SS"
+├── answers             jsonb                   -- { "0": 1, "1": 3, ... }
+├── breakdown           jsonb                   -- { beginner: {correct,total,pct}, ... }
+├── recommendation      text
+├── taken_at            timestamptz   DEFAULT now()
+├── session_name        text          NOT NULL  DEFAULT 'Session 1'
+├── focus_lost          int           NOT NULL  DEFAULT 0
+├── copy_attempts       int           NOT NULL  DEFAULT 0
+├── time_per_question   int[]                   -- seconds per question slot [0..19]
+├── avg_time_per_q      int           NOT NULL  DEFAULT 0
+├── suspicious          boolean       NOT NULL  DEFAULT false
+└── suspicious_flags    text[]                  -- human-readable flag reasons
 ```
 
 Indexes: `level`, `taken_at DESC`, `email`

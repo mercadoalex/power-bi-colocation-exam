@@ -6,21 +6,28 @@
 -- ── 1. Main results table ────────────────────────────────────────────────────
 
 create table if not exists exam_results (
-  id              uuid          default gen_random_uuid() primary key,
-  first_name      text          not null,
-  last_name       text          not null,
-  email           text          not null,
-  score           int           not null check (score >= 0 and score <= 20),
-  percentage      int           not null check (percentage >= 0 and percentage <= 100),
-  level           text          not null check (level in ('Beginner', 'Intermediate', 'Advanced')),
-  correct         int           not null,
-  wrong           int           not null,
-  skipped         int           not null,
-  time_used       text          not null,   -- "MM:SS"
-  answers         jsonb,                    -- { "0": 1, "1": 3, ... }
-  breakdown       jsonb,                    -- { beginner: {correct,total,pct}, ... }
-  recommendation  text,
-  taken_at        timestamptz   not null default now()
+  id                  uuid          default gen_random_uuid() primary key,
+  first_name          text          not null,
+  last_name           text          not null,
+  email               text          not null,
+  score               int           not null check (score >= 0 and score <= 20),
+  percentage          int           not null check (percentage >= 0 and percentage <= 100),
+  level               text          not null check (level in ('Beginner', 'Intermediate', 'Advanced')),
+  correct             int           not null,
+  wrong               int           not null,
+  skipped             int           not null,
+  time_used           text          not null,   -- "MM:SS"
+  answers             jsonb,                    -- { "0": 1, "1": 3, ... }
+  breakdown           jsonb,                    -- { beginner: {correct,total,pct}, ... }
+  recommendation      text,
+  taken_at            timestamptz   not null default now(),
+  session_name        text          not null default 'Session 1',
+  focus_lost          int           not null default 0,
+  copy_attempts       int           not null default 0,
+  time_per_question   int[],                    -- seconds per question slot [0..19]
+  avg_time_per_q      int           not null default 0,
+  suspicious          boolean       not null default false,
+  suspicious_flags    text[]                    -- human-readable flag reasons
 );
 
 -- Index for HR queries: filter by level, sort by date
@@ -89,6 +96,13 @@ select
   wrong,
   skipped,
   time_used,
+  session_name,
+  focus_lost,
+  copy_attempts,
+  time_per_question,
+  avg_time_per_q,
+  suspicious,
+  suspicious_flags,
   (breakdown -> 'beginner'  ->> 'pct')::int  as beginner_pct,
   (breakdown -> 'intermediate' ->> 'pct')::int as intermediate_pct,
   (breakdown -> 'advanced'  ->> 'pct')::int  as advanced_pct,

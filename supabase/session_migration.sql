@@ -7,7 +7,7 @@ update exam_results
   set session_name = 'Session 1'
   where session_name is null or session_name = '';
 
--- Recreate summary view to include session_name
+-- Recreate summary view to include session_name and all integrity/timing fields
 create or replace view exam_results_summary as
 select
   id,
@@ -23,6 +23,12 @@ select
   skipped,
   time_used,
   session_name,
+  focus_lost,
+  copy_attempts,
+  time_per_question,
+  avg_time_per_q,
+  suspicious,
+  suspicious_flags,
   (breakdown -> 'beginner'  ->> 'pct')::int   as beginner_pct,
   (breakdown -> 'intermediate' ->> 'pct')::int as intermediate_pct,
   (breakdown -> 'advanced'  ->> 'pct')::int   as advanced_pct,

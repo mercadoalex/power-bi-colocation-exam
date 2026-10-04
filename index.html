@@ -503,69 +503,20 @@
 </div>
 
 <!-- ════════════════════════════════════════════════════
-     PAGE 3 — RESULTS & REPORT
+     PAGE 3 — SUBMITTED CONFIRMATION (report opens in new tab)
 ═══════════════════════════════════════════════════════ -->
 <div id="page-result" class="page">
   <div class="container">
-    <div class="card">
-      <!-- Hero -->
-      <div class="result-hero">
-        <div id="level-badge" class="level-badge"></div>
-        <div class="score-big" id="score-pct"></div>
-        <div class="score-label">Overall Score</div>
-        <div class="score-row">
-          <div class="score-stat">
-            <div class="score-stat-val correct-val" id="stat-correct">-</div>
-            <div class="score-stat-lbl">Correct</div>
-          </div>
-          <div class="score-stat">
-            <div class="score-stat-val wrong-val" id="stat-wrong">-</div>
-            <div class="score-stat-lbl">Incorrect</div>
-          </div>
-          <div class="score-stat">
-            <div class="score-stat-val skip-val" id="stat-skip">-</div>
-            <div class="score-stat-lbl">Skipped</div>
-          </div>
-          <div class="score-stat">
-            <div class="score-stat-val" id="stat-time" style="color:var(--primary)">-</div>
-            <div class="score-stat-lbl">Time Used</div>
-          </div>
-        </div>
-        <div id="level-desc" style="font-size:14px; color:var(--muted); max-width:460px; margin: 0 auto;"></div>
-      </div>
-
-      <!-- HR Report sections -->
-      <div class="report-section">
-        <h3>📋 Participant Information</h3>
-        <div class="info-grid" id="report-info"></div>
-      </div>
-
-      <div class="report-section">
-        <h3>📊 Performance by Difficulty</h3>
-        <div id="report-breakdown"></div>
-      </div>
-
-      <div class="report-section">
-        <h3>📝 Recommendation</h3>
-        <div id="report-recommendation" style="font-size:14px; line-height:1.7;"></div>
-      </div>
-
-      <!-- Integrity notice — only shown if N > 0 (populated by renderResult) -->
-      <div id="integrity-section" style="display:none;" class="report-section">
-        <h3>⚠️ Exam Integrity Notes</h3>
-        <div id="integrity-body"></div>
-      </div>
-
-      <div class="report-section">
-        <h3>✅ Question Review</h3>
-        <div class="review-list" id="review-list"></div>
-      </div>
-
-      <!-- Actions -->
-      <div class="report-actions">
-        <button class="btn btn-print" onclick="window.print()">🖨 Print / Save as PDF</button>
-        <button class="btn btn-ghost" onclick="restartExam()">↩ New Assessment</button>
-      </div>
+    <div class="card" style="text-align:center; padding: 48px 32px;">
+      <div style="font-size:56px; margin-bottom:20px;">✅</div>
+      <div class="card-title" style="font-size:22px; margin-bottom:10px;">Assessment Complete</div>
+      <div id="confirm-name" style="font-size:16px; color:var(--muted); margin-bottom:8px;"></div>
+      <div id="confirm-level" class="level-badge" style="display:inline-block; margin: 12px auto 20px;"></div>
+      <p style="font-size:14px; color:var(--muted); max-width:400px; margin:0 auto 28px; line-height:1.7;">
+        Your results have been saved. Your detailed HR report has opened in a new tab — you can print it or save it as PDF from there.
+      </p>
+      <div id="confirm-report-link" style="margin-bottom:16px;"></div>
+      <button class="btn btn-ghost btn-sm" onclick="restartExam()">↩ New Assessment</button>
     </div>
   </div>
 </div>
@@ -1187,10 +1138,9 @@ async function finishExam(timedOut) {
 
   // ── Show loading state ──
   showPage('page-result');
-  document.getElementById('score-pct').textContent = '…';
-  document.getElementById('level-badge').textContent = 'Submitting';
-  document.getElementById('level-badge').className = 'level-badge';
-  document.getElementById('level-desc').textContent = 'Saving your results, please wait…';
+  document.getElementById('confirm-name').textContent  = 'Saving your results, please wait…';
+  document.getElementById('confirm-level').textContent = '…';
+  document.getElementById('confirm-level').className   = 'level-badge';
 
   // Issue 2 — mark session as submitted so restore doesn't re-open it
   try {
@@ -1225,12 +1175,13 @@ async function finishExam(timedOut) {
 
     if (res.status === 409) {
       const err = await res.json().catch(() => ({}));
-      // Show error on result page — don't fall back to local scoring
+      // Show error on confirmation page — don't fall back to local scoring
       clearInterval(timerInterval);
-      document.getElementById('score-pct').textContent = '—';
-      document.getElementById('level-badge').textContent = 'Already Submitted';
-      document.getElementById('level-badge').className = 'level-badge level-intermediate';
-      document.getElementById('level-desc').textContent = err.message || 'This email has already submitted the assessment for this session.';
+      document.getElementById('confirm-name').textContent  = participant.email;
+      document.getElementById('confirm-level').textContent = 'Already Submitted';
+      document.getElementById('confirm-level').className   = 'level-badge level-intermediate';
+      document.getElementById('confirm-report-link').innerHTML =
+        `<p style="font-size:13px;color:#dc2626;">${err.message || 'This email has already submitted the assessment for this session.'}</p>`;
       return;
     }
     if (!res.ok) {
@@ -1292,7 +1243,7 @@ function scoreLocally(timeUsedStr) {
   return { correct, wrong, skipped, percentage, level, breakdown, recommendation, timeUsed: timeUsedStr };
 }
 
-// ── Render result page from Edge Function or local score ──
+// ── Render result — opens full report in a new tab, shows confirmation here ──
 function renderResult(result, timeUsedStr) {
   const { correct, wrong, skipped, percentage, level, breakdown, recommendation } = result;
 
@@ -1303,95 +1254,216 @@ function renderResult(result, timeUsedStr) {
     Advanced:     'The participant demonstrates advanced proficiency in Power BI and is best placed in the Advanced track.',
   };
 
-  document.getElementById('level-badge').textContent  = level;
-  document.getElementById('level-badge').className    = 'level-badge ' + levelClassMap[level];
-  document.getElementById('score-pct').textContent    = percentage + '%';
-  document.getElementById('stat-correct').textContent = correct;
-  document.getElementById('stat-wrong').textContent   = wrong;
-  document.getElementById('stat-skip').textContent    = skipped;
-  document.getElementById('stat-time').textContent    = timeUsedStr;
-  document.getElementById('level-desc').textContent   = levelDescMap[level];
+  // ── Update confirmation screen ────────────────────────
+  document.getElementById('confirm-name').textContent = participant.fullName + ' — ' + participant.email;
+  const badge = document.getElementById('confirm-level');
+  badge.textContent = level;
+  badge.className   = 'level-badge ' + levelClassMap[level];
 
-  // Participant info
-  document.getElementById('report-info').innerHTML = `
-    <div class="info-item"><strong>Full Name</strong>${participant.fullName}</div>
-    <div class="info-item"><strong>Email</strong>${participant.email}</div>
-    <div class="info-item"><strong>Date</strong>${participant.date}</div>
-    <div class="info-item"><strong>Start Time</strong>${participant.time}</div>
-    <div class="info-item"><strong>Score</strong>${correct} / ${QUESTIONS.length} (${percentage}%)</div>
-    <div class="info-item"><strong>Level Assigned</strong>${level}</div>
-    <div class="info-item"><strong>Time Used</strong>${timeUsedStr}</div>
-    <div class="info-item"><strong>Exam</strong>Power BI Skills Assessment v1</div>
-  `;
+  // ── Build and open the report in a new tab ────────────
+  const fl = result.focusLost    ?? focusLostCount;
+  const ca = result.copyAttempts ?? copyAttempts;
 
-  // Breakdown by difficulty
+  const integrityHtml = (fl > 0 || ca > 0) ? `
+    <div class="report-section" style="border:1.5px solid #fca5a5;border-radius:10px;padding:16px 20px;background:#fef2f2;">
+      <h3 style="color:#b91c1c;">⚠️ Exam Integrity Notes</h3>
+      ${fl > 0 ? `<div class="integrity-row">👁 <strong>Tab / window left during exam:</strong> ${fl} time${fl !== 1 ? 's' : ''}. Exam was paused and timer kept running.</div>` : ''}
+      ${ca > 0 ? `<div class="integrity-row">⛔ <strong>Copy attempt${ca !== 1 ? 's' : ''} detected:</strong> ${ca} time${ca !== 1 ? 's' : ''}. Content copying was blocked.</div>` : ''}
+    </div>` : '';
+
   const bdHtml = ['beginner', 'intermediate', 'advanced'].map(d => {
     const b   = breakdown[d];
     const c   = b.correct ?? b.c ?? 0;
     const t   = b.total   ?? b.t ?? 0;
     const dp  = b.pct     ?? (t ? Math.round((c / t) * 100) : 0);
     const lbl = d.charAt(0).toUpperCase() + d.slice(1);
+    const barColor = d === 'beginner' ? '#3b82f6' : d === 'intermediate' ? '#f59e0b' : '#10b981';
     return `
       <div style="margin-bottom:14px;">
         <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:5px;">
           <span style="font-weight:600;">${lbl}</span>
-          <span style="color:var(--muted)">${c} / ${t} correct (${dp}%)</span>
+          <span style="color:#57606a">${c} / ${t} correct (${dp}%)</span>
         </div>
-        <div style="background:var(--border);border-radius:99px;height:10px;overflow:hidden;">
-          <div style="width:${dp}%;height:100%;background:var(--${d});border-radius:99px;transition:width .5s;"></div>
+        <div style="background:#e5e7eb;border-radius:99px;height:10px;overflow:hidden;">
+          <div style="width:${dp}%;height:100%;background:${barColor};border-radius:99px;"></div>
         </div>
       </div>`;
   }).join('');
-  document.getElementById('report-breakdown').innerHTML = bdHtml;
 
-  // Recommendation
-  document.getElementById('report-recommendation').innerHTML = recommendation;
-
-  // ── Integrity section — only shown if N > 0 ──────────
-  const fl = result.focusLost    ?? focusLostCount;
-  const ca = result.copyAttempts ?? copyAttempts;
-  if (fl > 0 || ca > 0) {
-    const rows = [];
-    if (fl > 0) rows.push(`<div class="integrity-row">👁 <strong>Tab / window left during exam:</strong> ${fl} time${fl !== 1 ? 's' : ''}. The exam was paused each time and the timer kept running.</div>`);
-    if (ca > 0) rows.push(`<div class="integrity-row">⛔ <strong>Copy attempt${ca !== 1 ? 's' : ''} detected:</strong> ${ca} time${ca !== 1 ? 's' : ''}. Content copying was blocked.</div>`);
-    document.getElementById('integrity-body').innerHTML = rows.join('');
-    document.getElementById('integrity-section').style.display = '';
-  }
-
-  // Question review — use shuffled order for this session
   const reviewQs  = examQuestions.length ? examQuestions : QUESTIONS;
   const reviewHtml = reviewQs.map((q, i) => {
     const correctIdx = q._shuffledCorrect ?? qCorrect(q);
-    let status, statusClass, ansText;
+    let statusClass, ansText;
     if (answers[i] === undefined) {
-      status = 'Skipped'; statusClass = 'skipped';
-      ansText = '<span style="color:var(--muted)">Not answered</span>';
+      statusClass = 'skipped';
+      ansText = '<span style="color:#57606a">Not answered</span>';
     } else if (answers[i] === correctIdx) {
-      status = '✓ Correct'; statusClass = 'correct';
-      ansText = `<span class="ans-correct">${q.options[answers[i]]}</span>`;
+      statusClass = 'correct';
+      ansText = `<span style="color:#16a34a;font-weight:600;">${q.options[answers[i]]}</span>`;
     } else {
-      status = '✗ Incorrect'; statusClass = 'wrong';
-      ansText = `<span class="ans-wrong">${q.options[answers[i]]}</span> &nbsp;→&nbsp; Correct: <span class="ans-correct">${q.options[correctIdx]}</span>`;
+      statusClass = 'wrong';
+      ansText = `<span style="color:#dc2626;font-weight:600;">${q.options[answers[i]]}</span> &nbsp;→&nbsp; Correct: <span style="color:#16a34a;font-weight:600;">${q.options[correctIdx]}</span>`;
     }
+    const statusLabel = statusClass === 'correct' ? '✓ Correct' : statusClass === 'wrong' ? '✗ Incorrect' : 'Skipped';
     const secs = timings[i] || 0;
-    const timeTag = `<em style="font-size:11px;color:var(--muted);margin-left:6px;">${secs}s</em>`;
+    const borderColor = statusClass === 'correct' ? '#16a34a' : statusClass === 'wrong' ? '#dc2626' : '#9ca3af';
     return `
-      <div class="review-item ${statusClass}">
-        <div class="review-q">Q${i+1}. ${q.text} <em style="font-size:11px;color:var(--muted);font-weight:400;">(${q.difficulty})</em>${timeTag}</div>
-        <div class="review-ans">${status} — ${ansText}</div>
+      <div style="border-left:4px solid ${borderColor};background:#f7f8fa;border-radius:0 8px 8px 0;padding:12px 16px;margin-bottom:8px;">
+        <div style="font-weight:600;margin-bottom:4px;font-size:14px;">Q${i+1}. ${q.text} <em style="font-size:11px;color:#57606a;font-weight:400;">(${q.difficulty}) — ${secs}s</em></div>
+        <div style="font-size:13px;">${statusLabel} — ${ansText}</div>
       </div>`;
   }).join('');
-  document.getElementById('review-list').innerHTML = reviewHtml;
 
-  // Report URL from Supabase Storage (if available)
-  if (result.reportUrl) {
-    const actionsDiv = document.querySelector('.report-actions');
-    const link = document.createElement('a');
-    link.href = result.reportUrl;
-    link.target = '_blank';
-    link.className = 'btn btn-ghost';
-    link.textContent = '📄 Open Full Report';
-    actionsDiv.prepend(link);
+  const reportUrl = result.reportUrl || null;
+  const externalReportBtn = reportUrl
+    ? `<a href="${reportUrl}" target="_blank" style="display:inline-block;padding:10px 22px;background:#1a1d2e;color:#fff;border-radius:8px;text-decoration:none;font-size:14px;font-weight:600;margin-right:8px;">📄 Open Supabase Report</a>`
+    : '';
+
+  const levelBg   = level === 'Beginner' ? '#dbeafe' : level === 'Intermediate' ? '#fef3c7' : '#d1fae5';
+  const levelFg   = level === 'Beginner' ? '#1d4ed8' : level === 'Intermediate' ? '#78350f' : '#065f46';
+  const generated = new Date().toLocaleString('en-GB', { dateStyle: 'long', timeStyle: 'short' });
+
+  const reportHtml = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Power BI Assessment Report — ${participant.fullName}</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, "Segoe UI", system-ui, sans-serif; font-size: 14px; background: #f7f8fa; color: #1f2328; line-height: 1.6; }
+  .wrap { max-width: 760px; margin: 0 auto; padding: 32px 24px 48px; }
+  .page-header { background: #1a1d2e; color: #fff; padding: 24px 32px; border-radius: 12px; margin-bottom: 28px; display: flex; align-items: center; gap: 20px; }
+  .page-header .logo { font-size: 28px; font-weight: 900; color: #f9c23c; letter-spacing: -1px; }
+  .page-header .title { font-size: 16px; font-weight: 600; }
+  .page-header .subtitle { font-size: 12px; opacity: .6; margin-top: 2px; }
+  .hero { background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 28px 32px; text-align: center; margin-bottom: 20px; }
+  .level-pill { display: inline-block; padding: 6px 20px; border-radius: 99px; font-weight: 700; font-size: 15px; background: ${levelBg}; color: ${levelFg}; margin-bottom: 12px; }
+  .score-big { font-size: 52px; font-weight: 900; color: #1f2328; line-height: 1; }
+  .score-lbl { font-size: 14px; color: #57606a; margin-bottom: 20px; }
+  .stat-row { display: flex; justify-content: center; gap: 32px; flex-wrap: wrap; }
+  .stat { text-align: center; }
+  .stat-val { font-size: 26px; font-weight: 700; }
+  .stat-lbl { font-size: 12px; color: #57606a; }
+  .section { background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 22px 28px; margin-bottom: 16px; }
+  .section h3 { font-size: 14px; font-weight: 700; color: #1f2328; padding-bottom: 12px; margin-bottom: 16px; border-bottom: 1px solid #e5e7eb; }
+  .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 24px; }
+  .info-item strong { display: block; font-size: 11px; color: #57606a; font-weight: 600; text-transform: uppercase; letter-spacing: .4px; }
+  .info-item { font-size: 14px; }
+  .rec-box { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 14px 18px; font-size: 14px; line-height: 1.7; }
+  .actions { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px; }
+  .btn { padding: 10px 22px; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; text-decoration: none; display: inline-block; }
+  .btn-print { background: #1a1d2e; color: #fff; }
+  .btn-close { background: #f3f4f6; color: #374151; border: 1.5px solid #d1d5db; }
+  .footer { text-align: center; font-size: 12px; color: #9ca3af; border-top: 1px solid #e5e7eb; padding-top: 18px; margin-top: 32px; }
+  @media print {
+    body { background: #fff; }
+    .actions { display: none !important; }
+    .wrap { padding: 0; }
+    .page-header { border-radius: 0; }
+    .section, .hero { border: 1px solid #ccc; box-shadow: none; }
+  }
+  @media (max-width: 560px) {
+    .info-grid { grid-template-columns: 1fr; }
+    .stat-row  { gap: 18px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="page-header">
+    <div class="logo">PBI</div>
+    <div>
+      <div class="title">Power BI Skills Assessment — KMMX Training &amp; Consultancy</div>
+      <div class="subtitle">Confidential HR Report &nbsp;·&nbsp; Generated ${generated}</div>
+    </div>
+  </div>
+
+  <div class="actions">
+    ${externalReportBtn}
+    <button class="btn btn-print" onclick="window.print()">🖨 Print / Save as PDF</button>
+    <button class="btn btn-close" onclick="window.close()">✕ Close Report</button>
+  </div>
+
+  <div class="hero">
+    <div class="level-pill">${level}</div>
+    <div class="score-big">${percentage}%</div>
+    <div class="score-lbl">Overall Score</div>
+    <div class="stat-row">
+      <div class="stat"><div class="stat-val" style="color:#16a34a">${correct}</div><div class="stat-lbl">Correct</div></div>
+      <div class="stat"><div class="stat-val" style="color:#dc2626">${wrong}</div><div class="stat-lbl">Incorrect</div></div>
+      <div class="stat"><div class="stat-val" style="color:#9ca3af">${skipped}</div><div class="stat-lbl">Skipped</div></div>
+      <div class="stat"><div class="stat-val" style="color:#2c5de5">${timeUsedStr}</div><div class="stat-lbl">Time Used</div></div>
+    </div>
+    <p style="font-size:13px;color:#57606a;max-width:440px;margin:16px auto 0;">${levelDescMap[level]}</p>
+  </div>
+
+  <div class="section">
+    <h3>📋 Participant Information</h3>
+    <div class="info-grid">
+      <div class="info-item"><strong>Full Name</strong>${participant.fullName}</div>
+      <div class="info-item"><strong>Email</strong>${participant.email}</div>
+      <div class="info-item"><strong>Date</strong>${participant.date}</div>
+      <div class="info-item"><strong>Start Time</strong>${participant.time}</div>
+      <div class="info-item"><strong>Score</strong>${correct} / ${QUESTIONS.length} (${percentage}%)</div>
+      <div class="info-item"><strong>Level Assigned</strong>${level}</div>
+      <div class="info-item"><strong>Time Used</strong>${timeUsedStr}</div>
+      <div class="info-item"><strong>Exam</strong>Power BI Skills Assessment v1</div>
+    </div>
+  </div>
+
+  <div class="section">
+    <h3>📊 Performance by Difficulty</h3>
+    ${bdHtml}
+  </div>
+
+  <div class="section">
+    <h3>📝 HR Recommendation</h3>
+    <div class="rec-box">${recommendation}</div>
+  </div>
+
+  ${integrityHtml ? `<div style="margin-bottom:16px;">${integrityHtml}</div>` : ''}
+
+  <div class="section">
+    <h3>✅ Question Review</h3>
+    ${reviewHtml}
+  </div>
+
+  <div class="footer">
+    Power BI Skills Assessment &nbsp;·&nbsp; KMMX Training &amp; Consultancy &nbsp;·&nbsp; <a href="mailto:info@kmmx.mx" style="color:#2c5de5;text-decoration:none;">info@kmmx.mx</a>
+    <br><small style="opacity:.6;">Made with IBM Bob</small>
+  </div>
+</div>
+</body>
+</html>`;
+
+  // ── Open in new tab ───────────────────────────────────
+  const reportWin = window.open('', '_blank');
+  if (reportWin) {
+    reportWin.document.write(reportHtml);
+    reportWin.document.close();
+  }
+
+  // ── Update confirmation card + fallback link if popup blocked ──
+  const linkDiv = document.getElementById('confirm-report-link');
+  if (!reportWin || reportWin.closed) {
+    // Popup was blocked — offer a manual open via Blob URL
+    try {
+      const blob = new Blob([reportHtml], { type: 'text/html' });
+      const url  = URL.createObjectURL(blob);
+      linkDiv.innerHTML = `<a href="${url}" target="_blank" class="btn btn-primary btn-sm">📄 Open Report (popup was blocked)</a>`;
+    } catch (_) {
+      linkDiv.innerHTML = `<p style="font-size:13px;color:#dc2626;">Your browser blocked the report popup. Please allow popups for this site and try again.</p>`;
+    }
+  } else {
+    linkDiv.innerHTML = `<p style="font-size:13px;color:#57606a;">If the report tab didn't open, <a id="report-reopen" href="#" style="color:#2c5de5;">click here</a>.</p>`;
+    // Recreate blob URL for the fallback link
+    try {
+      const blob = new Blob([reportHtml], { type: 'text/html' });
+      const url  = URL.createObjectURL(blob);
+      document.getElementById('report-reopen').href = url;
+      document.getElementById('report-reopen').target = '_blank';
+    } catch (_) {}
   }
 }
 
@@ -1420,8 +1492,9 @@ function restartExam() {
   examSeed          = 0;
   questionEnteredAt = 0;
   sessionStorage.removeItem('pbi_exam_state');
-  document.getElementById('integrity-section').style.display = 'none';
-  document.getElementById('integrity-body').innerHTML = '';
+  document.getElementById('confirm-name').textContent    = '';
+  document.getElementById('confirm-level').textContent   = '';
+  document.getElementById('confirm-report-link').innerHTML = '';
   document.getElementById('firstName').value  = '';
   document.getElementById('lastName').value   = '';
   document.getElementById('email').value      = '';
