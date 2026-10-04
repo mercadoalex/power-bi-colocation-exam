@@ -810,10 +810,47 @@ const QUESTIONS = [
 const qCorrect = q => q._c ^ _k;
 
 // ════════════════════════════════════════════════════════
+//  SHUFFLE — Fisher-Yates, seeded per exam session
+// ════════════════════════════════════════════════════════
+function seededRng(seed) {
+  // Simple xorshift32
+  let s = seed >>> 0 || 1;
+  return () => {
+    s ^= s << 13; s ^= s >> 17; s ^= s << 5;
+    return (s >>> 0) / 4294967296;
+  };
+}
+
+function shuffleArray(arr, rng) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+// Build a shuffled exam for this participant session.
+// Options are also shuffled; we track the remapped correct index.
+function buildShuffledExam(seed) {
+  const rng = seededRng(seed);
+  // 1. Shuffle question order
+  const shuffledQs = shuffleArray(QUESTIONS, rng);
+  // 2. For each question, shuffle its options and remap the correct answer
+  return shuffledQs.map(q => {
+    const originalCorrect = qCorrect(q);
+    const optionIndices   = shuffleArray([0, 1, 2, 3], rng);
+    const newOptions      = optionIndices.map(i => q.options[i]);
+    const newCorrect      = optionIndices.indexOf(originalCorrect);
+    return { ...q, options: newOptions, _shuffledCorrect: newCorrect, _origIndex: q.id - 1 };
+  });
+}
+
+// ════════════════════════════════════════════════════════
 //  STATE
 // ════════════════════════════════════════════════════════
 let participant = {};
-let answers = {};          // { questionIndex: selectedOptionIndex }
+let answers = {};          // { questionIndex: selectedOptionIndex (in shuffled order) }
 let currentQ = 0;
 let timerInterval = null;
 const EXAM_DURATION_MINUTES = 25;        // ← change exam time here
@@ -821,6 +858,10 @@ let secondsRemaining = EXAM_DURATION_MINUTES * 60;
 let examStartTime = null;
 let examEndTime = null;
 let isSubmitting = false;  // Issue 1 — guard against double-submit
+let examQuestions = [];    // shuffled question list for this session
+let examSeed = 0;          // seed used — sent to server for audit
+let questionEnteredAt = 0; // timestamp when current question was shown
+let timings = [];          // seconds spent per question slot [0..19]
 
 // ── Anti-cheat counters ───────────────────────────────
 let focusLostCount  = 0;   // tab/window left during exam
@@ -1003,12 +1044,18 @@ async function startExam() {
     time: new Date().toLocaleTimeString('en-GB', { hour:'2-digit', minute:'2-digit' })
   };
 
+  // Build shuffled exam unique to this participant session
+  examSeed      = (Date.now() ^ (Math.random() * 0xFFFFFFFF)) >>> 0;
+  examQuestions = buildShuffledExam(examSeed);
+  timings       = new Array(examQuestions.length).fill(0);
+
   showPage('page-exam');
-  currentQ = 0;
-  answers = {};
-  isSubmitting = false;
-  secondsRemaining = EXAM_DURATION_MINUTES * 60;
-  examStartTime = Date.now();
+  currentQ          = 0;
+  answers           = {};
+  isSubmitting      = false;
+  secondsRemaining  = EXAM_DURATION_MINUTES * 60;
+  examStartTime     = Date.now();
+  questionEnteredAt = Date.now();
   saveExamState(); // Issue 2 — persist initial state immediately
   renderQuestion();
   startTimer();
@@ -1043,8 +1090,16 @@ function updateTimerDisplay() {
 // ════════════════════════════════════════════════════════
 //  RENDER QUESTION
 // ════════════════════════════════════════════════════════
+function recordTiming() {
+  // Save elapsed seconds on the current question before leaving it
+  const elapsed = Math.round((Date.now() - questionEnteredAt) / 1000);
+  timings[currentQ] = (timings[currentQ] || 0) + elapsed;
+  questionEnteredAt = Date.now();
+}
+
 function renderQuestion() {
-  const q   = QUESTIONS[currentQ];
+  const qs   = examQuestions.length ? examQuestions : QUESTIONS; // fallback if restore
+  const q    = qs[currentQ];
   const area = document.getElementById('question-area');
 
   const diffLabel = { beginner: 'Beginner', intermediate: 'Intermediate', advanced: 'Advanced' }[q.difficulty];
@@ -1053,7 +1108,7 @@ function renderQuestion() {
     <div class="question-header">
       <div>
         <div class="question-num">
-          Question ${currentQ + 1} of ${QUESTIONS.length}
+          Question ${currentQ + 1} of ${qs.length}
           <span class="question-difficulty diff-${q.difficulty}">${diffLabel}</span>
         </div>
         <div class="question-text">${q.text}</div>
@@ -1072,20 +1127,20 @@ function renderQuestion() {
   `;
 
   // Progress
-  const pct = ((currentQ + 1) / QUESTIONS.length) * 100;
+  const pct = ((currentQ + 1) / qs.length) * 100;
   document.getElementById('progress-fill').style.width = pct + '%';
-  document.getElementById('progress-text').textContent = `Question ${currentQ + 1} of ${QUESTIONS.length}`;
+  document.getElementById('progress-text').textContent = `Question ${currentQ + 1} of ${qs.length}`;
 
   // Nav buttons
   document.getElementById('btn-prev').disabled = currentQ === 0;
-  const isLast = currentQ === QUESTIONS.length - 1;
+  const isLast = currentQ === qs.length - 1;
   const btnNext = document.getElementById('btn-next');
   btnNext.textContent = isLast ? 'Finish Exam ✓' : 'Next →';
   btnNext.onclick = isLast ? () => finishExam(false) : () => navigate(1);
 
   // Dots (mini nav indicator)
   const answered = Object.keys(answers).length;
-  document.getElementById('nav-dots').textContent = `${answered} of ${QUESTIONS.length} answered`;
+  document.getElementById('nav-dots').textContent = `${answered} of ${qs.length} answered`;
 }
 
 function selectAnswer(optionIndex) {
@@ -1095,13 +1150,15 @@ function selectAnswer(optionIndex) {
     lbl.classList.toggle('selected', i === optionIndex);
   });
   const answered = Object.keys(answers).length;
-  document.getElementById('nav-dots').textContent = `${answered} of ${QUESTIONS.length} answered`;
+  document.getElementById('nav-dots').textContent = `${answered} of ${(examQuestions.length || QUESTIONS.length)} answered`;
   saveExamState(); // Issue 2 — persist on every answer
 }
 
 function navigate(dir) {
+  const qs   = examQuestions.length ? examQuestions : QUESTIONS;
   const next = currentQ + dir;
-  if (next < 0 || next >= QUESTIONS.length) return;
+  if (next < 0 || next >= qs.length) return;
+  recordTiming(); // save time spent on question before moving
   currentQ = next;
   renderQuestion();
   saveExamState(); // Issue 2 — persist on navigation
@@ -1119,6 +1176,7 @@ async function finishExam(timedOut) {
   const finishBtn = document.getElementById('btn-next');
   if (finishBtn) { finishBtn.disabled = true; finishBtn.textContent = 'Submitting…'; }
 
+  recordTiming(); // capture time on the last question before submitting
   clearInterval(timerInterval);
   examEndTime = Date.now();
 
@@ -1158,6 +1216,9 @@ async function finishExam(timedOut) {
         timeUsed:      timeUsedStr,
         focusLost:     focusLostCount,
         copyAttempts:  copyAttempts,
+        timings,           // per-question seconds [0..19] in shuffled order
+        examSeed,          // seed used to shuffle — for audit
+        questionOrder: examQuestions.map(q => q.id), // shuffled question ID order
         // Issue 7 — do NOT send startedAt; server uses its own time
       }),
     });
@@ -1196,12 +1257,13 @@ function scoreLocally(timeUsedStr) {
     advanced:     { correct: 0, total: 0, pct: 0 },
   };
 
-  QUESTIONS.forEach((q, i) => {
+  const qs = examQuestions.length ? examQuestions : QUESTIONS;
+  qs.forEach((q, i) => {
     const d = q.difficulty;
     breakdown[d].total++;
     if (answers[i] === undefined) {
       skipped++;
-    } else if (answers[i] === qCorrect(q)) {
+    } else if (answers[i] === (q._shuffledCorrect ?? qCorrect(q))) {
       correct++;
       breakdown[d].correct++;
     } else {
@@ -1214,7 +1276,7 @@ function scoreLocally(timeUsedStr) {
     b.pct = b.total > 0 ? Math.round((b.correct / b.total) * 100) : 0;
   }
 
-  const percentage = Math.round((correct / QUESTIONS.length) * 100);
+  const percentage = Math.round((correct / qs.length) * 100);
   let level, recommendation;
   if (correct <= 9) {
     level = 'Beginner';
@@ -1296,22 +1358,26 @@ function renderResult(result, timeUsedStr) {
     document.getElementById('integrity-section').style.display = '';
   }
 
-  // Question review (always rendered locally from QUESTIONS + answers)
-  const reviewHtml = QUESTIONS.map((q, i) => {
+  // Question review — use shuffled order for this session
+  const reviewQs  = examQuestions.length ? examQuestions : QUESTIONS;
+  const reviewHtml = reviewQs.map((q, i) => {
+    const correctIdx = q._shuffledCorrect ?? qCorrect(q);
     let status, statusClass, ansText;
     if (answers[i] === undefined) {
       status = 'Skipped'; statusClass = 'skipped';
       ansText = '<span style="color:var(--muted)">Not answered</span>';
-    } else if (answers[i] === qCorrect(q)) {
+    } else if (answers[i] === correctIdx) {
       status = '✓ Correct'; statusClass = 'correct';
       ansText = `<span class="ans-correct">${q.options[answers[i]]}</span>`;
     } else {
       status = '✗ Incorrect'; statusClass = 'wrong';
-      ansText = `<span class="ans-wrong">${q.options[answers[i]]}</span> &nbsp;→&nbsp; Correct: <span class="ans-correct">${q.options[qCorrect(q)]}</span>`;
+      ansText = `<span class="ans-wrong">${q.options[answers[i]]}</span> &nbsp;→&nbsp; Correct: <span class="ans-correct">${q.options[correctIdx]}</span>`;
     }
+    const secs = timings[i] || 0;
+    const timeTag = `<em style="font-size:11px;color:var(--muted);margin-left:6px;">${secs}s</em>`;
     return `
       <div class="review-item ${statusClass}">
-        <div class="review-q">Q${i+1}. ${q.text} <em style="font-size:11px;color:var(--muted);font-weight:400;">(${q.difficulty})</em></div>
+        <div class="review-q">Q${i+1}. ${q.text} <em style="font-size:11px;color:var(--muted);font-weight:400;">(${q.difficulty})</em>${timeTag}</div>
         <div class="review-ans">${status} — ${ansText}</div>
       </div>`;
   }).join('');
@@ -1345,10 +1411,14 @@ function showPage(id) {
 
 function restartExam() {
   clearInterval(timerInterval);
-  isSubmitting   = false;
-  focusLostCount = 0;
-  copyAttempts   = 0;
-  examPageActive = false;
+  isSubmitting      = false;
+  focusLostCount    = 0;
+  copyAttempts      = 0;
+  examPageActive    = false;
+  examQuestions     = [];
+  timings           = [];
+  examSeed          = 0;
+  questionEnteredAt = 0;
   sessionStorage.removeItem('pbi_exam_state');
   document.getElementById('integrity-section').style.display = 'none';
   document.getElementById('integrity-body').innerHTML = '';

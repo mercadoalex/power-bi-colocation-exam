@@ -43,12 +43,15 @@ interface Participant {
 }
 
 interface SubmitPayload {
-  participant:  Participant;
-  accessCode:   string;
-  answers:      Record<number, number>; // { questionIndex: selectedOptionIndex }
-  timeUsed:     string;                 // "MM:SS"
-  focusLost?:   number;                 // tab-blur count
-  copyAttempts?: number;                // blocked copy attempts
+  participant:   Participant;
+  accessCode:    string;
+  answers:       Record<number, number>; // { questionIndex: selectedOptionIndex }
+  timeUsed:      string;                 // "MM:SS"
+  focusLost?:    number;                 // tab-blur count
+  copyAttempts?: number;                 // blocked copy attempts
+  timings?:      number[];               // seconds per question slot
+  examSeed?:     number;                 // shuffle seed (audit)
+  questionOrder?: number[];              // shuffled question ID order
 }
 
 interface QuestionMeta {
@@ -66,22 +69,26 @@ interface DifficultyBreakdown {
 }
 
 interface ExamResult {
-  firstName:    string;
-  lastName:     string;
-  email:        string;
-  score:        number;
-  percentage:   number;
-  level:        "Beginner" | "Intermediate" | "Advanced";
-  correct:      number;
-  wrong:        number;
-  skipped:      number;
-  timeUsed:     string;
-  answers:      Record<number, number>;
-  breakdown:    Record<string, DifficultyBreakdown>;
-  recommendation: string;
-  takenAt:      string;
-  focusLost:    number;
-  copyAttempts: number;
+  firstName:       string;
+  lastName:        string;
+  email:           string;
+  score:           number;
+  percentage:      number;
+  level:           "Beginner" | "Intermediate" | "Advanced";
+  correct:         number;
+  wrong:           number;
+  skipped:         number;
+  timeUsed:        string;
+  answers:         Record<number, number>;
+  breakdown:       Record<string, DifficultyBreakdown>;
+  recommendation:  string;
+  takenAt:         string;
+  focusLost:       number;
+  copyAttempts:    number;
+  timings:         number[];
+  avgTimePerQ:     number;   // mean seconds across all questions
+  suspicious:      boolean;  // true if integrity signals exceed threshold
+  suspiciousFlags: string[]; // human-readable reasons
 }
 
 // ── Answer Key ────────────────────────────────────────────────────────────────
@@ -565,9 +572,12 @@ Deno.serve(async (req: Request) => {
   }
 
   const { participant, accessCode, answers, timeUsed,
-          focusLost: rawFocusLost, copyAttempts: rawCopyAttempts } = payload as SubmitPayload;
+          focusLost: rawFocusLost, copyAttempts: rawCopyAttempts,
+          timings: rawTimings, examSeed: rawSeed, questionOrder: rawOrder } = payload as SubmitPayload;
   const focusLost    = Math.max(0, Math.min(999, Number(rawFocusLost    ?? 0) || 0));
   const copyAttempts = Math.max(0, Math.min(999, Number(rawCopyAttempts ?? 0) || 0));
+  const timings      = Array.isArray(rawTimings) ? rawTimings.map(t => Math.max(0, Number(t) || 0)) : [];
+  const examSeed     = Number(rawSeed ?? 0);
 
   // ── Score ───────────────────────────────────────────────────────────────────
   const { correct, wrong, skipped, breakdown, questionDetail } = scoreExam(answers);
@@ -579,11 +589,32 @@ Deno.serve(async (req: Request) => {
   // Issue 7 — always use server time; never trust client-supplied startedAt
   const takenAt = new Date().toISOString();
 
+  // ── Suspicious activity detection ────────────────────────────────────────────
+  const FAST_Q_THRESHOLD   = 5;   // seconds — answering faster is flagged per question
+  const FAST_Q_COUNT_LIMIT = 5;   // if more than N questions answered this fast → flag
+  const avgTimePerQ = timings.length
+    ? Math.round(timings.reduce((s, t) => s + t, 0) / timings.length)
+    : 0;
+  const fastQCount = timings.filter(t => t > 0 && t < FAST_Q_THRESHOLD).length;
+
+  const suspiciousFlags: string[] = [];
+  if (fastQCount > FAST_Q_COUNT_LIMIT)
+    suspiciousFlags.push(`${fastQCount} questions answered in under ${FAST_Q_THRESHOLD}s (avg ${avgTimePerQ}s/question)`);
+  if (copyAttempts >= 3)
+    suspiciousFlags.push(`${copyAttempts} copy attempts blocked during exam`);
+  if (focusLost >= 5)
+    suspiciousFlags.push(`Tab/window left ${focusLost} times during exam`);
+  // High score + very fast average is the strongest signal
+  if (correct >= 15 && avgTimePerQ > 0 && avgTimePerQ < 8)
+    suspiciousFlags.push(`High score (${correct}/20) with very low avg time (${avgTimePerQ}s/question)`);
+
+  const suspicious = suspiciousFlags.length > 0;
+
   const result: ExamResult = {
-    firstName:    participant.firstName.trim(),
-    lastName:     participant.lastName.trim(),
-    email:        participant.email.trim().toLowerCase(),
-    score:        correct,
+    firstName:       participant.firstName.trim(),
+    lastName:        participant.lastName.trim(),
+    email:           participant.email.trim().toLowerCase(),
+    score:           correct,
     percentage,
     level,
     correct,
@@ -596,6 +627,10 @@ Deno.serve(async (req: Request) => {
     takenAt,
     focusLost,
     copyAttempts,
+    timings,
+    avgTimePerQ,
+    suspicious,
+    suspiciousFlags,
   };
 
   // ── Supabase client (service role — bypasses RLS for inserts) ───────────────
@@ -662,8 +697,12 @@ Deno.serve(async (req: Request) => {
       recommendation: result.recommendation,
       taken_at:       result.takenAt,
       session_name:   activeSession,
-      focus_lost:     result.focusLost,
-      copy_attempts:  result.copyAttempts,
+      focus_lost:      result.focusLost,
+      copy_attempts:   result.copyAttempts,
+      time_per_question: result.timings,
+      avg_time_per_q:  result.avgTimePerQ,
+      suspicious:      result.suspicious,
+      suspicious_flags: result.suspiciousFlags,
     })
     .select("id")
     .single();
@@ -721,8 +760,12 @@ Deno.serve(async (req: Request) => {
       skipped:      result.skipped,
       breakdown:    result.breakdown,
       recommendation: result.recommendation,
-      focusLost:    result.focusLost,
-      copyAttempts: result.copyAttempts,
+      focusLost:       result.focusLost,
+      copyAttempts:    result.copyAttempts,
+      timings:         result.timings,
+      avgTimePerQ:     result.avgTimePerQ,
+      suspicious:      result.suspicious,
+      suspiciousFlags: result.suspiciousFlags,
     }),
     { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
   );

@@ -403,6 +403,28 @@
 </div>
 
 <!-- ══════════════════════════════════════════════════════
+     SUSPICIOUS ACTIVITY DRILL-DOWN MODAL
+═══════════════════════════════════════════════════════ -->
+<div id="suspicious-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:999;align-items:center;justify-content:center;overflow-y:auto;padding:20px;">
+  <div style="background:#fff;border-radius:12px;max-width:620px;width:100%;box-shadow:0 8px 48px rgba(0,0,0,.3);overflow:hidden;margin:auto;">
+    <!-- Header -->
+    <div style="background:#7c3aed;padding:18px 24px;display:flex;align-items:center;justify-content:space-between;">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <span style="font-size:22px;">🔍</span>
+        <div>
+          <div style="color:#fff;font-size:15px;font-weight:800;" id="sm-name">—</div>
+          <div style="color:#ddd6fe;font-size:12px;margin-top:2px;">Integrity Drill-Down Report</div>
+        </div>
+      </div>
+      <button onclick="closeSuspiciousModal()" style="background:none;border:none;color:#fff;font-size:22px;cursor:pointer;line-height:1;">×</button>
+    </div>
+    <!-- Body -->
+    <div style="padding:24px;" id="sm-body">
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════
      MAIN DASHBOARD
 ═══════════════════════════════════════════════════════ -->
 <div class="main">
@@ -931,7 +953,7 @@ function clearFilters() {
 function renderTable() {
   const tbody = document.getElementById('table-body');
   if (!filtered.length) {
-    tbody.innerHTML = `<tr><td colspan="10" class="no-data">No results match the current filters.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="12" class="no-data">No results match the current filters.</td></tr>`;
     return;
   }
 
@@ -948,8 +970,18 @@ function renderTable() {
          </a>`
       : '—';
 
+    // Avg time per question
+    const avg = r.avg_time_per_q != null ? `${r.avg_time_per_q}s/Q` : '—';
+
+    // Suspicious flag
+    const suspFlag = r.suspicious
+      ? `<button onclick="openSuspiciousModal(${r.id ? `'${r.id}'` : 'null'},${i})"
+           style="background:none;border:none;cursor:pointer;padding:0;font-size:13px;"
+           title="View integrity report">⚠️ Suspicious</button>`
+      : '<span style="color:#22c55e;font-size:12px;">✓</span>';
+
     return `
-      <tr>
+      <tr style="${r.suspicious ? 'background:#faf5ff;' : ''}">
         <td style="color:var(--muted);font-size:12px;">${i + 1}</td>
         <td style="font-weight:600;">${escHtml(r.full_name)}</td>
         <td style="color:var(--muted);">${escHtml(r.email)}</td>
@@ -964,6 +996,8 @@ function renderTable() {
         </td>
         <td>${r.correct} / 20</td>
         <td>${r.time_used || '—'}</td>
+        <td style="font-size:12px;color:var(--muted);">${avg}</td>
+        <td style="font-size:12px;">${suspFlag}</td>
         <td style="font-size:12px;color:var(--muted);">${escHtml(r.session_name || '—')}</td>
         <td style="color:var(--muted);font-size:12px;">${date} ${time}</td>
         <td>${reportLink}</td>
@@ -973,6 +1007,94 @@ function renderTable() {
   document.getElementById('filter-count').textContent =
     `Showing ${filtered.length} of ${allResults.length} participants`;
 }
+
+// ── Suspicious activity drill-down ──────────────────────
+function openSuspiciousModal(rowId, filteredIdx) {
+  const r = filteredIdx != null ? filtered[filteredIdx] : null;
+  if (!r) return;
+
+  document.getElementById('sm-name').textContent = r.full_name + ' — ' + r.email;
+
+  const flags  = r.suspicious_flags || [];
+  const timingsArr = r.time_per_question || [];
+  const avg    = r.avg_time_per_q != null ? r.avg_time_per_q : '—';
+
+  // Summary cards
+  let html = `
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:20px;">
+      <div style="background:#f7f8fa;border-radius:8px;padding:12px;text-align:center;">
+        <div style="font-size:11px;color:#6b7280;text-transform:uppercase;font-weight:700;margin-bottom:4px;">Score</div>
+        <div style="font-size:20px;font-weight:800;color:#1a1d2e;">${r.percentage}%</div>
+        <div style="font-size:11px;color:#6b7280;">${r.correct}/20 correct</div>
+      </div>
+      <div style="background:#f7f8fa;border-radius:8px;padding:12px;text-align:center;">
+        <div style="font-size:11px;color:#6b7280;text-transform:uppercase;font-weight:700;margin-bottom:4px;">Avg time/Q</div>
+        <div style="font-size:20px;font-weight:800;color:#1a1d2e;">${avg}s</div>
+        <div style="font-size:11px;color:#6b7280;">per question</div>
+      </div>
+      <div style="background:#faf5ff;border:1px solid #ddd6fe;border-radius:8px;padding:12px;text-align:center;">
+        <div style="font-size:11px;color:#6b7280;text-transform:uppercase;font-weight:700;margin-bottom:4px;">Integrity</div>
+        <div style="font-size:20px;font-weight:800;color:#7c3aed;">⚠️</div>
+        <div style="font-size:11px;color:#7c3aed;font-weight:600;">${flags.length} flag${flags.length !== 1 ? 's' : ''}</div>
+      </div>
+    </div>`;
+
+  // Flags list
+  if (flags.length) {
+    html += `<div style="margin-bottom:18px;">
+      <div style="font-size:12px;font-weight:800;color:#1a1d2e;text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px;">🚩 Detected Signals</div>
+      ${flags.map(f => `<div style="background:#faf5ff;border-left:3px solid #7c3aed;padding:8px 12px;border-radius:0 6px 6px 0;font-size:13px;color:#4c1d95;margin-bottom:6px;">${escHtml(f)}</div>`).join('')}
+    </div>`;
+  }
+
+  // Per-question timing chart
+  if (timingsArr.length) {
+    const maxT  = Math.max(...timingsArr, 1);
+    html += `<div>
+      <div style="font-size:12px;font-weight:800;color:#1a1d2e;text-transform:uppercase;letter-spacing:.6px;margin-bottom:10px;">⏱ Time per Question (seconds)</div>
+      <div style="display:flex;flex-direction:column;gap:4px;">
+        ${timingsArr.map((t, i) => {
+          const pct  = Math.round((t / maxT) * 100);
+          const fast = t > 0 && t < 5;
+          const bar  = fast ? '#dc2626' : '#7c3aed';
+          return `
+            <div style="display:flex;align-items:center;gap:8px;font-size:12px;">
+              <span style="width:24px;text-align:right;color:#6b7280;flex-shrink:0;">Q${i+1}</span>
+              <div style="flex:1;background:#f3f4f6;border-radius:4px;height:14px;overflow:hidden;">
+                <div style="width:${pct}%;height:100%;background:${bar};border-radius:4px;"></div>
+              </div>
+              <span style="width:32px;font-weight:600;color:${fast ? '#dc2626' : '#374151'}">${t}s${fast ? ' ⚡' : ''}</span>
+            </div>`;
+        }).join('')}
+      </div>
+      <div style="font-size:11px;color:#6b7280;margin-top:8px;">⚡ Red bars = answered in under 5 seconds</div>
+    </div>`;
+  }
+
+  // Integrity counters
+  html += `<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:18px;">
+    <div style="background:#f7f8fa;border-radius:6px;padding:10px 14px;font-size:13px;">
+      <span style="color:#6b7280;">Tab/window left:</span>
+      <strong style="margin-left:6px;color:${(r.focus_lost||0) >= 5 ? '#dc2626' : '#374151'}">${r.focus_lost || 0} time${(r.focus_lost||0) !== 1 ? 's' : ''}</strong>
+    </div>
+    <div style="background:#f7f8fa;border-radius:6px;padding:10px 14px;font-size:13px;">
+      <span style="color:#6b7280;">Copy attempts:</span>
+      <strong style="margin-left:6px;color:${(r.copy_attempts||0) >= 3 ? '#dc2626' : '#374151'}">${r.copy_attempts || 0} time${(r.copy_attempts||0) !== 1 ? 's' : ''}</strong>
+    </div>
+  </div>`;
+
+  document.getElementById('sm-body').innerHTML = html;
+  const modal = document.getElementById('suspicious-modal');
+  modal.style.display = 'flex';
+}
+
+function closeSuspiciousModal() {
+  document.getElementById('suspicious-modal').style.display = 'none';
+}
+
+document.getElementById('suspicious-modal').addEventListener('click', function(e) {
+  if (e.target === this) closeSuspiciousModal();
+});
 
 // ── New Session modal ────────────────────────────────────
 function showNewSessionModal() {
