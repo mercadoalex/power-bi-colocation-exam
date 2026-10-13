@@ -801,7 +801,8 @@ function buildShuffledExam(seed) {
 //  STATE
 // ════════════════════════════════════════════════════════
 let participant = {};
-let answers = {};          // { questionIndex: selectedOptionIndex (in shuffled order) }
+let answers = {};           // { slotIndex: shuffledOptionIndex } — in-session use only
+let canonicalAnswers = {};  // { canonicalQuestionIndex: canonicalOptionIndex } — sent to server + used for display
 let currentQ = 0;
 let timerInterval = null;
 const EXAM_DURATION_MINUTES = 25;        // ← change exam time here
@@ -1155,7 +1156,7 @@ async function finishExam(timedOut) {
   // examQuestions[slot]._origIndex   = canonical question index (q.id - 1)
   // examQuestions[slot].options      = shuffled options array
   // QUESTIONS[canonicalIdx].options  = canonical options array
-  const canonicalAnswers = {};
+  canonicalAnswers = {};  // reset module-level var
   examQuestions.forEach((q, slot) => {
     if (answers[slot] === undefined) return;            // skipped — don't include
     const canonicalIdx    = q._origIndex;              // 0-based canonical position
@@ -1305,19 +1306,24 @@ function renderResult(result, timeUsedStr) {
       </div>`;
   }).join('');
 
+  // reviewQs iterates in shuffled order for display, but answers are now
+  // stored in canonical space — look up via _origIndex and canonical options
   const reviewQs  = examQuestions.length ? examQuestions : QUESTIONS;
   const reviewHtml = reviewQs.map((q, i) => {
-    const correctIdx = q._shuffledCorrect ?? qCorrect(q);
+    const canonicalIdx  = q._origIndex ?? (q.id - 1);        // canonical question index
+    const canonicalQ    = QUESTIONS[canonicalIdx];            // canonical question object
+    const correctIdx    = qCorrect(canonicalQ);               // correct option in canonical order
+    const selectedIdx   = canonicalAnswers[canonicalIdx];     // what participant selected (canonical)
     let statusClass, ansText;
-    if (answers[i] === undefined) {
+    if (selectedIdx === undefined) {
       statusClass = 'skipped';
       ansText = '<span style="color:#57606a">Not answered</span>';
-    } else if (answers[i] === correctIdx) {
+    } else if (selectedIdx === correctIdx) {
       statusClass = 'correct';
-      ansText = `<span style="color:#16a34a;font-weight:600;">${q.options[answers[i]]}</span>`;
+      ansText = `<span style="color:#16a34a;font-weight:600;">${canonicalQ.options[selectedIdx]}</span>`;
     } else {
       statusClass = 'wrong';
-      ansText = `<span style="color:#dc2626;font-weight:600;">${q.options[answers[i]]}</span> &nbsp;→&nbsp; Correct: <span style="color:#16a34a;font-weight:600;">${q.options[correctIdx]}</span>`;
+      ansText = `<span style="color:#dc2626;font-weight:600;">${canonicalQ.options[selectedIdx]}</span> &nbsp;→&nbsp; Correct: <span style="color:#16a34a;font-weight:600;">${canonicalQ.options[correctIdx]}</span>`;
     }
     const statusLabel = statusClass === 'correct' ? '✓ Correct' : statusClass === 'wrong' ? '✗ Incorrect' : 'Skipped';
     const secs = timings[i] || 0;
@@ -1506,6 +1512,8 @@ function restartExam() {
   timings           = [];
   examSeed          = 0;
   questionEnteredAt = 0;
+  answers           = {};
+  canonicalAnswers  = {};
   sessionStorage.removeItem('pbi_exam_state');
   document.getElementById('confirm-name').textContent    = '';
   document.getElementById('confirm-level').textContent   = '';
