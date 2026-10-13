@@ -1149,6 +1149,22 @@ async function finishExam(timedOut) {
     sessionStorage.setItem('pbi_exam_state', JSON.stringify(saved));
   } catch (_) {}
 
+  // ── Remap answers from shuffled space → canonical space ──────────────────
+  // answers = { slotIndex: shuffledOptionIndex }
+  // Server expects { canonicalQuestionIndex: canonicalOptionIndex }
+  // examQuestions[slot]._origIndex   = canonical question index (q.id - 1)
+  // examQuestions[slot].options      = shuffled options array
+  // QUESTIONS[canonicalIdx].options  = canonical options array
+  const canonicalAnswers = {};
+  examQuestions.forEach((q, slot) => {
+    if (answers[slot] === undefined) return;            // skipped — don't include
+    const canonicalIdx    = q._origIndex;              // 0-based canonical position
+    const shuffledOptIdx  = answers[slot];             // option index in shuffled order
+    const chosenText      = q.options[shuffledOptIdx]; // the actual text they selected
+    const canonicalOptIdx = QUESTIONS[canonicalIdx].options.indexOf(chosenText); // find in canonical order
+    if (canonicalOptIdx !== -1) canonicalAnswers[canonicalIdx] = canonicalOptIdx;
+  });
+
   // ── POST to Edge Function ──
   let result;
   try {
@@ -1162,14 +1178,13 @@ async function finishExam(timedOut) {
           email:     participant.email,
         },
         accessCode:    participant.accessCode,
-        answers,
+        answers:       canonicalAnswers,  // canonical question index → canonical option index
         timeUsed:      timeUsedStr,
         focusLost:     focusLostCount,
         copyAttempts:  copyAttempts,
-        timings,           // per-question seconds [0..19] in shuffled order
-        examSeed,          // seed used to shuffle — for audit
-        questionOrder: examQuestions.map(q => q.id), // shuffled question ID order
-        // Issue 7 — do NOT send startedAt; server uses its own time
+        timings,
+        examSeed,
+        questionOrder: examQuestions.map(q => q.id),
       }),
     });
 
